@@ -1,0 +1,6 @@
+.idea/
+*-dev.js
+development
+node_modules
+package-lock.json
+connect.json
