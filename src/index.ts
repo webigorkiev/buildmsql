@@ -32,7 +32,8 @@ export interface Connection extends mariadb.PoolConnection {
         options?: {
             ignore?: boolean,
         }
-    ): Promise<mariadb.UpsertResult>
+    ): Promise<mariadb.UpsertResult>,
+    getPool(): mariadb.Pool|mariadb.PoolCluster
 }
 
 interface mariadbConnection extends mariadb.PoolConnection {
@@ -48,7 +49,14 @@ export interface QueryOptions {
     debug?: 0|1,
 
     // Used for manticore search
-    nativeTransactions?: boolean
+    nativeTransactions?: boolean,
+
+    // pattern *string* regex pattern to select pools. Example, `"slave*"`. default `'*'`
+    pattern?:string,
+
+    // *string* pools selector. Can be 'RR' (round-robin),
+    // 'RANDOM' or 'ORDER' (use in sequence = always use first pools unless fails)
+    selector?: string
 }
 
 /**
@@ -93,7 +101,7 @@ interface InsertOptions {
  * Query builder class
  */
 export class Query {
-    private _buildmsqlPoll: mariadb.Pool| undefined;
+    private _buildmsqlPool: mariadb.Pool|mariadb.PoolCluster| undefined;
     private _buildmsqlConnection: mariadbConnection;
     private _buildmsqlOptions: QueryOptions;
 
@@ -115,9 +123,36 @@ export class Query {
      * @param options - config options for query
      * @param pool
      */
-    constructor(options: QueryOptions = {}, pool?:mariadb.Pool) {
+    constructor(options: QueryOptions = {}, pool?:mariadb.Pool|mariadb.PoolCluster) {
         this._buildmsqlOptions = options;
-        this._buildmsqlPoll = pool;
+        this._buildmsqlPool = pool;
+    }
+
+    /**
+     * Get pool object
+     * @return
+     */
+    getPool(): mariadb.Pool|mariadb.PoolCluster {
+        if(typeof this._buildmsqlPool === "undefined") {
+            throw Error("pool is undefined");
+        }
+
+        return this._buildmsqlPool;
+    }
+
+    /**
+     * Get connection
+     * @returns
+     */
+    async getConnection(pattern?: string, selector?: string): Promise<mariadb.PoolConnection> {
+        if(typeof this._buildmsqlPool === "undefined") {
+            throw Error("pool is undefined");
+        }
+
+        pattern  = pattern || this._buildmsqlOptions.pattern;
+        selector  = pattern || this._buildmsqlOptions.selector;
+
+        return await this._buildmsqlPool.getConnection(pattern, selector);
     }
 
     /**
@@ -126,13 +161,13 @@ export class Query {
      * @param values
      */
     async poolQuery(sql: string| mariadb.QueryOptions, values?: any) {
-        if(typeof this._buildmsqlPoll === "undefined") {
+        if(typeof this._buildmsqlPool === "undefined") {
             throw Error("pool is undefined");
         }
 
-        const connection = this.proxy(await this._buildmsqlPoll.getConnection());
+        const connection = this.proxy(await this.getConnection());
         try {
-            return await connection.query(sql, values);
+            return await this.query(sql, values);
         } catch(e) {
             throw e;
         } finally {
@@ -146,13 +181,13 @@ export class Query {
      * @param values object of values
      */
     async poolQueryStream(sql: string| mariadb.QueryOptions, values?: any) {
-        if(typeof this._buildmsqlPoll === "undefined") {
+        if(typeof this._buildmsqlPool === "undefined") {
             throw Error("pool is undefined");
         }
 
-        const connection = this.proxy(await this._buildmsqlPoll.getConnection());
+        const connection = this.proxy(await this.getConnection());
 
-        return connection.queryStream(sql, values)
+        return this.queryStream(sql, values)
             .on("end", async() => {
                 await connection.release();
             });
@@ -164,13 +199,13 @@ export class Query {
      * @param values object of values
      */
     async poolBatch(sql: string| mariadb.QueryOptions, values?: any) {
-        if(typeof this._buildmsqlPoll === "undefined") {
+        if(typeof this._buildmsqlPool === "undefined") {
             throw Error("pool is undefined");
         }
 
-        const connection = this.proxy(await this._buildmsqlPoll.getConnection());
+        const connection = this.proxy(await this.getConnection());
         try {
-            return await connection.batch(sql, values);
+            return await this.batch(sql, values);
         } catch(e) {
             throw e;
         } finally {
@@ -189,13 +224,13 @@ export class Query {
         params: Record<string, any>| Array<Record<string, any>>,
         options?: InsertOptions
     ) {
-        if(typeof this._buildmsqlPoll === "undefined") {
+        if(typeof this._buildmsqlPool === "undefined") {
             throw Error("pool is undefined");
         }
 
-        const connection = this.proxy(await this._buildmsqlPoll.getConnection());
+        const connection = this.proxy(await this.getConnection());
         try {
-            return await connection.insert(table, params, options);
+            return await this.insert(table, params, options);
         } catch(e) {
             throw e;
         } finally {
@@ -218,14 +253,14 @@ export class Query {
             ignore?: boolean
         }
     ) {
-        if(typeof this._buildmsqlPoll === "undefined") {
+        if(typeof this._buildmsqlPool === "undefined") {
             throw Error("pool is undefined");
         }
 
-        const connection = this.proxy(await this._buildmsqlPoll.getConnection());
+        const connection = this.proxy(await this.getConnection());
         try {
 
-            return await connection.update(table, where, params, options);
+            return await this.update(table, where, params, options);
         } catch(e) {
             throw e;
         } finally {

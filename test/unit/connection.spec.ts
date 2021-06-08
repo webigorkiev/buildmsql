@@ -35,7 +35,7 @@ beforeEach(async() => {
     await connection.query(`TRUNCATE ${table};`);
 })
 
-describe("Init testing schema", () => {
+describe("Init testing schema - connection", () => {
     it("Test creating table test", async() => {
         const rows = await connection.query(`SHOW TABLES LIKE '${table}';`);
         expect(rows.length).to.equal(1);
