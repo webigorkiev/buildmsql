@@ -70,6 +70,7 @@ interface InsertOptions {
  * Query builder class
  */
 export declare class Query {
+    private _buildmsqlPoll;
     private _buildmsqlConnection;
     private _buildmsqlOptions;
     /**
@@ -86,46 +87,42 @@ export declare class Query {
     /**
      * @constructor
      * @param options - config options for query
+     * @param pool
      */
-    constructor(options?: QueryOptions);
+    constructor(options?: QueryOptions, pool?: mariadb.Pool);
     /**
      * Query in pool instance
-     * @param pool poll of connection
      * @param sql
      * @param values
      */
-    poolQuery(pool: mariadb.Pool, sql: string | mariadb.QueryOptions, values?: any): Promise<any>;
+    poolQuery(sql: string | mariadb.QueryOptions, values?: any): Promise<any>;
     /**
      * Query in pool instance
-     * @param pool poll of connection
      * @param sql sql string or object
      * @param values object of values
      */
-    poolQueryStream(pool: mariadb.Pool, sql: string | mariadb.QueryOptions, values?: any): Promise<import("stream").Readable>;
+    poolQueryStream(sql: string | mariadb.QueryOptions, values?: any): Promise<import("stream").Readable>;
     /**
      * Query in pool instance
-     * @param pool poll of connection
      * @param sql sql string or object
      * @param values object of values
      */
-    poolBatch(pool: mariadb.Pool, sql: string | mariadb.QueryOptions, values?: any): Promise<mariadb.UpsertResult[]>;
+    poolBatch(sql: string | mariadb.QueryOptions, values?: any): Promise<mariadb.UpsertResult[]>;
     /**
      * Insert single request and release
-     * @param pool poll of connection
      * @param table name
      * @param params object of values
      * @param options
      */
-    poolInsert(pool: mariadb.Pool, table: string, params: Record<string, any> | Array<Record<string, any>>, options?: InsertOptions): Promise<any[] | mariadb.UpsertResult | mariadb.UpsertResult[]>;
+    poolInsert(table: string, params: Record<string, any> | Array<Record<string, any>>, options?: InsertOptions): Promise<any[] | mariadb.UpsertResult | mariadb.UpsertResult[]>;
     /**
      * Update single request and release
-     * @param pool poll of connection
      * @param table name
      * @param where string of where
      * @param params object of values
      * @param options
      */
-    poolUpdate(pool: mariadb.Pool, table: string, where: string, params: Record<string, any>, options?: {
+    poolUpdate(table: string, where: string, params: Record<string, any>, options?: {
         ignore?: boolean;
     }): Promise<mariadb.UpsertResult>;
     /**
@@ -160,6 +157,21 @@ export declare class Query {
      * @returns result set of query
      */
     batch(sql: string | mariadb.QueryOptions, values?: any): Promise<mariadb.UpsertResult[]>;
+    /**
+     * Begin transaction
+     * @returns void
+     */
+    beginTransaction(): Promise<void>;
+    /**
+     * Rollback transaction
+     * @returns void
+     */
+    rollback(): Promise<void>;
+    /**
+     * Commit transaction
+     * @returns void
+     */
+    commit(): Promise<void>;
     /**
      * Get last metadata
      */
