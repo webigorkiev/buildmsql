@@ -23,6 +23,7 @@ export interface Connection extends mariadb.PoolConnection {
     update(table: string, where: string, params: Record<string, any>, options?: {
         ignore?: boolean;
     }): Promise<mariadb.UpsertResult>;
+    getPool(): mariadb.Pool | mariadb.PoolCluster;
 }
 /**
  * Options for auery builder
@@ -30,6 +31,8 @@ export interface Connection extends mariadb.PoolConnection {
 export interface QueryOptions {
     debug?: 0 | 1;
     nativeTransactions?: boolean;
+    pattern?: string;
+    selector?: string;
 }
 /**
  * Metadata of result set
@@ -70,7 +73,7 @@ interface InsertOptions {
  * Query builder class
  */
 export declare class Query {
-    private _buildmsqlPoll;
+    private _buildmsqlPool;
     private _buildmsqlConnection;
     private _buildmsqlOptions;
     /**
@@ -89,7 +92,17 @@ export declare class Query {
      * @param options - config options for query
      * @param pool
      */
-    constructor(options?: QueryOptions, pool?: mariadb.Pool);
+    constructor(options?: QueryOptions, pool?: mariadb.Pool | mariadb.PoolCluster);
+    /**
+     * Get pool object
+     * @return
+     */
+    getPool(): mariadb.Pool | mariadb.PoolCluster;
+    /**
+     * Get connection
+     * @returns
+     */
+    getConnection(pattern?: string, selector?: string): Promise<mariadb.PoolConnection>;
     /**
      * Query in pool instance
      * @param sql
