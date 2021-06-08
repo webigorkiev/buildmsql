@@ -1,7 +1,7 @@
 import type mariadb from "mariadb";
 import {performance} from "perf_hooks";
 
-export interface Connection extends mariadb.Connection {
+export interface Connection extends mariadb.PoolConnection {
     insertArray(): void,
     proxy(): Connection,
     getMeta(): Array<MetadataResultSet>|mariadb.UpsertResult|Array<mariadb.UpsertResult>,
@@ -35,7 +35,7 @@ export interface Connection extends mariadb.Connection {
     ): Promise<mariadb.UpsertResult>
 }
 
-interface mariadbConnection extends mariadb.Connection {
+interface mariadbConnection extends mariadb.PoolConnection {
     emit(eventName: string|symbol, ...args: Array<any>): boolean
 }
 
@@ -81,6 +81,14 @@ export interface QueriesInfo {
     sql: string
 }
 
+interface InsertOptions {
+    replace?: boolean,
+    duplicate?: Array<string>|boolean,
+    returning?: Array<string>|boolean,
+    ignore?: boolean,
+    chunk?: number
+}
+
 /**
  * Query builder class
  */
@@ -110,11 +118,111 @@ export class Query {
     }
 
     /**
+     * Query in pool instance
+     * @param pool poll of connection
+     * @param sql
+     * @param values
+     */
+    async poolQuery(pool: mariadb.Pool, sql: string| mariadb.QueryOptions, values?: any) {
+        const connection = this.proxy(await pool.getConnection());
+        try {
+            return await connection.query(sql, values);
+        } catch(e) {
+            throw e;
+        } finally {
+            await connection.release();
+        }
+    }
+
+    /**
+     * Query in pool instance
+     * @param pool poll of connection
+     * @param sql sql string or object
+     * @param values object of values
+     */
+    async poolQueryStream(pool: mariadb.Pool, sql: string| mariadb.QueryOptions, values?: any) {
+        const connection = this.proxy(await pool.getConnection());
+
+        return connection.queryStream(sql, values)
+            .on("end", async() => {
+                await connection.release();
+            });
+    }
+
+    /**
+     * Query in pool instance
+     * @param pool poll of connection
+     * @param sql sql string or object
+     * @param values object of values
+     */
+    async poolBatch(pool: mariadb.Pool, sql: string| mariadb.QueryOptions, values?: any) {
+        const connection = this.proxy(await pool.getConnection());
+        try {
+            return await connection.batch(sql, values);
+        } catch(e) {
+            throw e;
+        } finally {
+            await connection.release();
+        }
+    }
+
+    /**
+     * Insert single request and release
+     * @param pool poll of connection
+     * @param table name
+     * @param params object of values
+     * @param options
+     */
+    async poolInsert(
+        pool: mariadb.Pool,
+        table: string,
+        params: Record<string, any>| Array<Record<string, any>>,
+        options?: InsertOptions
+    ) {
+        const connection = this.proxy(await pool.getConnection());
+        try {
+            return await connection.insert(table, params, options);
+        } catch(e) {
+            throw e;
+        } finally {
+            await connection.release();
+        }
+    }
+
+    /**
+     * Update single request and release
+     * @param pool poll of connection
+     * @param table name
+     * @param where string of where
+     * @param params object of values
+     * @param options
+     */
+    async poolUpdate(
+        pool: mariadb.Pool,
+        table: string,
+        where: string,
+        params: Record<string, any>,
+        options?: {
+            ignore?: boolean
+        }
+    ) {
+        const connection = this.proxy(await pool.getConnection());
+        try {
+
+            return await connection.update(table, where, params, options);
+        } catch(e) {
+            throw e;
+        } finally {
+            await connection.release();
+        }
+    }
+
+    /**
      * Set connection object
      * @param connection
      * @private
      */
-    private _setConnection(connection: mariadb.Connection) {
+    private _setConnection(connection: mariadb.Connection|mariadb.PoolConnection) {
         this._buildmsqlConnection = connection as mariadbConnection;
     }
 
@@ -122,7 +230,7 @@ export class Query {
      * Proxy connection
      * @param connection
      */
-    public proxy(connection: mariadb.Connection): Connection  {
+    public proxy(connection: mariadb.Connection|mariadb.PoolConnection): Connection  {
         this._setConnection(connection);
 
         return new Proxy(connection as Connection, {
@@ -166,7 +274,7 @@ export class Query {
      * @param values - object values for prepared _buildmsqlQueries
      * @returns result set of query
      */
-    async queryStream(sql: string| mariadb.QueryOptions, values?: any) {
+    queryStream(sql: string| mariadb.QueryOptions, values?: any) {
         this._debugStart(sql, values);
 
         return this._buildmsqlConnection.queryStream(sql, values)
@@ -253,13 +361,7 @@ export class Query {
     async insert(
         table: string,
         params: Record<string, any>| Array<Record<string, any>>,
-        options?: {
-            replace?: boolean,
-            duplicate?: Array<string>|boolean,
-            returning?: Array<string>|boolean,
-            ignore?: boolean,
-            chunk?: number
-        }
+        options?: InsertOptions
     ):Promise<mariadb.UpsertResult|Array<mariadb.UpsertResult>|Array<any>> {
         const isArray = Array.isArray(params);
         options= options || {};

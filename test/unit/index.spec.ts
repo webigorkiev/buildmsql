@@ -273,7 +273,7 @@ describe("Update", () => {
         expect(row.id).to.equal(id, `id is missing`);
         expect(row.params).to.eql({p: 2}, `params is missing`);
     })
-})
+});
 
 /**
  * Drop table after all
