@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import type mariadb from "mariadb";
+import mariadb from "mariadb";
 export interface Connection extends mariadb.PoolConnection {
     insertArray(): void;
     proxy(): Connection;
@@ -69,6 +69,7 @@ interface InsertOptions {
     ignore?: boolean;
     chunk?: number;
 }
+export type { mariadb as mariadb };
 /**
  * Query builder class
  */
@@ -90,9 +91,23 @@ export declare class Query {
     /**
      * @constructor
      * @param options - config options for query
-     * @param pool
      */
-    constructor(options?: QueryOptions, pool?: mariadb.Pool | mariadb.PoolCluster);
+    constructor(options?: QueryOptions);
+    /**
+     * Create connection
+     * @param config
+     */
+    createConnection(config: mariadb.ConnectionConfig): Promise<Connection>;
+    /**
+     * Create pool
+     * @param config
+     */
+    createPool(config: mariadb.PoolConfig): mariadb.Pool;
+    /**
+     * Create pool cluster
+     * @param config
+     */
+    createPoolCluster(config: mariadb.PoolClusterConfig): mariadb.PoolCluster;
     /**
      * Get pool object
      * @return
@@ -102,7 +117,7 @@ export declare class Query {
      * Get connection
      * @returns
      */
-    getConnection(pattern?: string, selector?: string): Promise<mariadb.PoolConnection>;
+    getConnection(pattern?: string, selector?: string): Promise<Connection>;
     /**
      * Query in pool instance
      * @param sql
@@ -148,7 +163,7 @@ export declare class Query {
      * Proxy connection
      * @param connection
      */
-    proxy(connection: mariadb.Connection | mariadb.PoolConnection): Connection;
+    private proxy;
     /**
      * Request query
      * @param sql - string sql query
@@ -243,4 +258,3 @@ export declare class Query {
      */
     private _debugEnd;
 }
-export {};

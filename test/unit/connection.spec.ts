@@ -1,6 +1,5 @@
 import {expect} from "chai";
 import fs from "fs/promises";
-import mariadb from "mariadb";
 import {Query, Connection} from "@/index";
 
 const table = "buildmsqltest";
@@ -17,9 +16,7 @@ before(async() => {
             await fs.readFile("./connect.json")
         ).toString()
     );
-    connection = qp.proxy(
-        await mariadb.createConnection({...config.db.home})
-    );
+    connection = await qp.createConnection({...config.db.home});
     await connection.query(`
         CREATE TABLE IF NOT EXISTS ${table} (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Identificatory' ,

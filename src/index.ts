@@ -1,4 +1,4 @@
-import type mariadb from "mariadb";
+import mariadb from "mariadb";
 import {performance} from "perf_hooks";
 
 export interface Connection extends mariadb.PoolConnection {
@@ -97,6 +97,8 @@ interface InsertOptions {
     chunk?: number
 }
 
+export type {mariadb as mariadb};
+
 /**
  * Query builder class
  */
@@ -121,11 +123,38 @@ export class Query {
     /**
      * @constructor
      * @param options - config options for query
-     * @param pool
      */
-    constructor(options: QueryOptions = {}, pool?:mariadb.Pool|mariadb.PoolCluster) {
+    constructor(options: QueryOptions = {}) {
         this._buildmsqlOptions = options;
-        this._buildmsqlPool = pool;
+    }
+
+    /**
+     * Create connection
+     * @param config
+     */
+    async createConnection(config: mariadb.ConnectionConfig): Promise<Connection> {
+
+        return this.proxy(await mariadb.createConnection(config));
+    }
+
+    /**
+     * Create pool
+     * @param config
+     */
+    createPool(config: mariadb.PoolConfig): mariadb.Pool {
+        this._buildmsqlPool = mariadb.createPool(config);
+
+        return this._buildmsqlPool;
+    }
+
+    /**
+     * Create pool cluster
+     * @param config
+     */
+    createPoolCluster(config: mariadb.PoolClusterConfig): mariadb.PoolCluster {
+        this._buildmsqlPool = mariadb.createPoolCluster(config);
+
+        return this._buildmsqlPool;
     }
 
     /**
@@ -144,7 +173,7 @@ export class Query {
      * Get connection
      * @returns
      */
-    async getConnection(pattern?: string, selector?: string): Promise<mariadb.PoolConnection> {
+    async getConnection(pattern?: string, selector?: string): Promise<Connection> {
         if(typeof this._buildmsqlPool === "undefined") {
             throw Error("pool is undefined");
         }
@@ -152,7 +181,7 @@ export class Query {
         pattern  = pattern || this._buildmsqlOptions.pattern;
         selector  = pattern || this._buildmsqlOptions.selector;
 
-        return await this._buildmsqlPool.getConnection(pattern, selector);
+        return this.proxy(await this._buildmsqlPool.getConnection(pattern, selector));
     }
 
     /**
@@ -165,7 +194,7 @@ export class Query {
             throw Error("pool is undefined");
         }
 
-        const connection = this.proxy(await this.getConnection());
+        const connection = await this.getConnection();
         try {
             return await this.query(sql, values);
         } catch(e) {
@@ -185,7 +214,7 @@ export class Query {
             throw Error("pool is undefined");
         }
 
-        const connection = this.proxy(await this.getConnection());
+        const connection = await this.getConnection();
 
         return this.queryStream(sql, values)
             .on("end", async() => {
@@ -203,7 +232,7 @@ export class Query {
             throw Error("pool is undefined");
         }
 
-        const connection = this.proxy(await this.getConnection());
+        const connection = await this.getConnection();
         try {
             return await this.batch(sql, values);
         } catch(e) {
@@ -228,7 +257,7 @@ export class Query {
             throw Error("pool is undefined");
         }
 
-        const connection = this.proxy(await this.getConnection());
+        const connection = await this.getConnection();
         try {
             return await this.insert(table, params, options);
         } catch(e) {
@@ -257,7 +286,7 @@ export class Query {
             throw Error("pool is undefined");
         }
 
-        const connection = this.proxy(await this.getConnection());
+        const connection = await this.getConnection();
         try {
 
             return await this.update(table, where, params, options);
@@ -281,7 +310,7 @@ export class Query {
      * Proxy connection
      * @param connection
      */
-    public proxy(connection: mariadb.Connection|mariadb.PoolConnection): Connection  {
+    private proxy(connection: mariadb.Connection|mariadb.PoolConnection): Connection  {
         this._setConnection(connection);
 
         return new Proxy(connection as Connection, {

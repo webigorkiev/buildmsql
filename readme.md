@@ -17,16 +17,15 @@ npm i buildmsql
 ```typescript
 
 import {Query, QueryOptions} from "buildmsql";
-import mariadb from "mariadb";
 
 const qb = new Query({
     // QueryOpinions
 })
 
-const connection = qb.proxy(await mariadb.createConnection({
+const connection = await qb.createConnection({
     host: 'mydb.com',
     user:'myUser',
     password: 'myPwd'
-}));
+});
 
 ```
