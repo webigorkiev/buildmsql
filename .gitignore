@@ -1,6 +1,8 @@
 .idea
 .yarn
 .yarnrc
+.pnp.js
+yarn.lock
 *-dev.js
 development
 node_modules
