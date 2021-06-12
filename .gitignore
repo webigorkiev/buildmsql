@@ -1,4 +1,6 @@
-.idea/
+.idea
+.yarn
+.yarnrc
 *-dev.js
 development
 node_modules
