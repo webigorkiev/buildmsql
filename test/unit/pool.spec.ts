@@ -264,7 +264,7 @@ describe("Update", () => {
         }, {test: {p: 1}});
         const id = qb.lastInsertId();
         await qb.poolUpdate(table, "id = :id", {id, params: {p: 2}});
-        const row = (await qb.query({
+        const row = (await qb.poolQuery({
                     sql: `SELECT * FROM ${table} WHERE id = :id`,
                     namedPlaceholders: true
                 },
