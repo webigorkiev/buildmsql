@@ -217,6 +217,19 @@ describe("Insert", () => {
         });
         expect(rows.length).to.equal(2, `record is missing`);
     });
+    it("Insert batch on duplicate key update - one record", async() => {
+        await connection.insert(table, [
+            {
+                id: 1,
+                params: {p:1}
+            }
+        ], {duplicate: true});
+        const rows = await connection.query({
+            sql: `SELECT * FROM ${table}`,
+            namedPlaceholders: true
+        });
+        expect(rows.length).to.equal(1, `record is missing`);
+    });
     it("Replace returning", async() => {
         const rows = await connection.insert(table,
             {

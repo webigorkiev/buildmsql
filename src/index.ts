@@ -660,7 +660,7 @@ export class Query {
         for(let i = 0,j = length; i < j; i += chunkLength) {
             const chunk = isArray ? params.slice(i, i + chunkLength) : params;
 
-            if(chunkLength > 1) {
+            if(isArray) {
                 result = await this.batch({
                     sql,
                     namedPlaceholders: true,
