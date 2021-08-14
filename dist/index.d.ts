@@ -260,15 +260,15 @@ export declare class Query {
     /**
      * Get last insert id
      */
-    lastInsertId(): number | undefined;
+    lastInsertId(): number;
     /**
      * Get affected Row
      */
-    affectedRows(): number | undefined;
+    affectedRows(): number;
     /**
      * Get warring status
      */
-    warningStatus(): number | undefined;
+    warningStatus(): number;
     /**
      * escape input values
      * @param input

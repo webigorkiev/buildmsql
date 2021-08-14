@@ -575,25 +575,28 @@ export class Query {
     /**
      * Get last insert id
      */
-    lastInsertId(): number|undefined {
+    lastInsertId(): number {
+        const meta = this._buildmsqlMeta as mariadb.UpsertResult;
 
-        return !Array.isArray(this._buildmsqlMeta) ? this._buildmsqlMeta.insertId : undefined;
+        return meta.insertId;
     }
 
     /**
      * Get affected Row
      */
-    affectedRows(): number|undefined {
+    affectedRows(): number {
+        const meta = this._buildmsqlMeta as mariadb.UpsertResult;
 
-        return !Array.isArray(this._buildmsqlMeta) ? this._buildmsqlMeta.affectedRows : undefined;
+        return meta.affectedRows;
     }
 
     /**
      * Get warring status
      */
-    warningStatus(): number|undefined {
+    warningStatus(): number {
+        const meta = this._buildmsqlMeta as mariadb.UpsertResult;
 
-        return !Array.isArray(this._buildmsqlMeta) ? this._buildmsqlMeta.warningStatus : undefined;
+        return meta.warningStatus;
     }
 
     /**
