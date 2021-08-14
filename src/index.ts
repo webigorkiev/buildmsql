@@ -5,9 +5,9 @@ export interface Connection extends mariadb.PoolConnection {
     insertArray(): void,
     proxy(): Connection,
     getMeta(): Array<MetadataResultSet>|mariadb.UpsertResult|Array<mariadb.UpsertResult>,
-    lastInsertId(): number|undefined,
-    affectedRows(): number|undefined,
-    warningStatus(): number|undefined,
+    lastInsertId(): number,
+    affectedRows(): number,
+    warningStatus(): number,
     quote(input: any): string,
     statistics(): {
         count: number,

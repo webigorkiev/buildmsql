@@ -1,6 +1,6 @@
 {
   "name": "buildmsql",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "buildmsql build sql for mariadb connector",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
