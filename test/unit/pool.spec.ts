@@ -94,6 +94,24 @@ describe("Insert", () => {
         expect(row.id).to.equal(id, `id is missing`);
         expect(row.params).to.eql({p: 1}, `params is missing`);
     });
+    it(" [select] from pull then insert by connection", async() => {
+        await qb.poolQuery({
+                sql: `SELECT * FROM ${table} WHERE id = :id`,
+                namedPlaceholders: true
+            },
+            {id: 1}
+        );
+        const connection = await qb.getConnection();
+        try {
+            await connection.insert(table, {
+                "params": {p: 1}
+            });
+            const last = connection.lastInsertId();
+            expect(last).to.be.a("number", "last insert id is not a number");
+        } finally {
+            await connection.release();
+        }
+    })
     it("Replace", async() => {
         await qb.poolInsert(table, {
             "params": {p:2}
@@ -280,9 +298,9 @@ describe("Update", () => {
  * Connection end
  */
 after(async() => {
-    await qb.poolQuery(`
-        DROP TABLE IF EXISTS ${table};
-    `);
+    // await qb.poolQuery(`
+    //     DROP TABLE IF EXISTS ${table};
+    // `);
     const pool = qb.getPool();
     await pool.end();
 });

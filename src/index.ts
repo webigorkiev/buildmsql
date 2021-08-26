@@ -125,7 +125,7 @@ export class Query {
      * object for update/insert/delete
      * @private
      */
-    private _buildmsqlMeta: Array<MetadataResultSet>|mariadb.UpsertResult|Array<mariadb.UpsertResult>
+    private _buildmsqlMeta: Array<MetadataResultSet>|mariadb.UpsertResult|Array<mariadb.UpsertResult>;
 
     /**
      * @constructor
@@ -433,11 +433,27 @@ export class Query {
 
         return new Proxy(connection as Connection, {
             get: (target, prop, receiver) => {
-                if(Reflect.has(this, prop)) {
+                if(
+                    Reflect.has(this, prop)
+                    || typeof prop === "string" && prop.indexOf("_buildmsql") === 0
+                ) {
 
                     return Reflect.get(this, prop, receiver);
                 } else {
+
                     return Reflect.get(target, prop, receiver);
+                }
+            },
+            set: (target, prop, value, receiver) => {
+                if(
+                    Reflect.has(this, prop)
+                    || typeof prop === "string" && prop.indexOf("_buildmsql") === 0
+                ) {
+
+                    return Reflect.set(this, prop, value);
+                } else {
+
+                    return Reflect.set(target, prop, value);
                 }
             }
         });
@@ -461,9 +477,8 @@ export class Query {
             }
 
             const result = await provider.query(sql, values);
-            this._buildmsqlMeta = result.hasOwnProperty("meta")
-                ? result.meta
-                : result;
+            const meta = (result.hasOwnProperty("meta") ? result.meta : result);
+            this._buildmsqlMeta = meta;
 
             return result;
         } catch(e) {
@@ -489,7 +504,7 @@ export class Query {
 
             })
             .on("fields", meta => {
-                this._buildmsqlMeta= meta;
+                this._buildmsqlMeta = meta;
             })
             .on("end", async() => {
                 this._debugEnd();

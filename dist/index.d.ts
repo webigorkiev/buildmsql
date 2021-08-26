@@ -68,7 +68,7 @@ export interface QueriesInfo {
     time: number;
     sql: string;
 }
-interface InsertOptions {
+export interface InsertOptions {
     replace?: boolean;
     duplicate?: Array<string> | boolean;
     returning?: Array<string> | boolean;
