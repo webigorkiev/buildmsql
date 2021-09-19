@@ -1,7 +1,6 @@
 /// <reference types="node" />
 import mariadb from "mariadb";
 export interface Connection extends mariadb.PoolConnection {
-    insertArray(): void;
     proxy(): Connection;
     getMeta(): Array<MetadataResultSet> | mariadb.UpsertResult | Array<mariadb.UpsertResult>;
     lastInsertId(): number;
@@ -13,15 +12,16 @@ export interface Connection extends mariadb.PoolConnection {
         time: number;
         queries: Array<QueriesInfo>;
     };
-    insert(table: string, params: Record<string, any> | Array<Record<string, any>>, options?: {
+    insert<T extends string>(table: T, params: Record<string, any> | Array<Record<string, any>>, options?: {
         replace?: boolean;
         duplicate?: Array<string> | boolean;
         returning?: Array<string> | boolean;
         ignore?: boolean;
         chunk?: number;
     }): Promise<mariadb.UpsertResult | Array<mariadb.UpsertResult> | Array<any>>;
-    update(table: string, where: string, params: Record<string, any>, options?: {
+    update<T extends string>(table: T, where: string, params: Record<string, any>, options?: {
         ignore?: boolean;
+        exclude?: Array<string>;
     }): Promise<mariadb.UpsertResult>;
     getPool(): mariadb.Pool | mariadb.PoolCluster;
 }
@@ -160,7 +160,7 @@ export declare class Query {
      * @param params object of values
      * @param options
      */
-    poolInsert(table: string, params: Record<string, any> | Array<Record<string, any>>, options?: InsertOptions): Promise<any[] | mariadb.UpsertResult | mariadb.UpsertResult[]>;
+    poolInsert<T extends string>(table: T, params: Record<string, any> | Array<Record<string, any>>, options?: InsertOptions): Promise<any[] | mariadb.UpsertResult | mariadb.UpsertResult[]>;
     /**
      * Update single request and release
      * @param table name
@@ -168,7 +168,7 @@ export declare class Query {
      * @param params object of values
      * @param options
      */
-    poolUpdate(table: string, where: string, params: Record<string, any>, options?: {
+    poolUpdate<T extends string>(table: T, where: string, params: Record<string, any>, options?: {
         ignore?: boolean;
     }): Promise<mariadb.UpsertResult>;
     /**
@@ -195,7 +195,7 @@ export declare class Query {
      * @param params object of values
      * @param options
      */
-    clusterInsert(table: string, params: Record<string, any> | Array<Record<string, any>>, options?: InsertOptions): Promise<any[] | mariadb.UpsertResult | mariadb.UpsertResult[]>;
+    clusterInsert<T extends string>(table: T, params: Record<string, any> | Array<Record<string, any>>, options?: InsertOptions): Promise<any[] | mariadb.UpsertResult | mariadb.UpsertResult[]>;
     /**
      * Update single request and release
      * @param table name
@@ -203,7 +203,7 @@ export declare class Query {
      * @param params object of values
      * @param options
      */
-    clusterUpdate(table: string, where: string, params: Record<string, any>, options?: {
+    clusterUpdate<T extends string>(table: T, where: string, params: Record<string, any>, options?: {
         ignore?: boolean;
     }): Promise<mariadb.UpsertResult>;
     /**
@@ -280,7 +280,7 @@ export declare class Query {
      * @param params
      * @param options
      */
-    insert(table: string, params: Record<string, any> | Array<Record<string, any>>, options?: InsertOptions): Promise<mariadb.UpsertResult | Array<mariadb.UpsertResult> | Array<any>>;
+    insert<T extends string>(table: T, params: Record<string, any> | Array<Record<string, any>>, options?: InsertOptions): Promise<mariadb.UpsertResult | Array<mariadb.UpsertResult> | Array<any>>;
     /**
      * Update data in table
      * @param table table name
@@ -288,9 +288,10 @@ export declare class Query {
      * @param params object input values
      * @param options
      */
-    update(table: string, where: string, params: Record<string, any>, options?: {
+    update<T extends string>(table: T, where: string, params: Record<string, any>, options?: {
         ignore?: boolean;
         isPool?: boolean;
+        exclude?: Array<string>;
     }): Promise<mariadb.UpsertResult>;
     /**
      * Get query statistics
