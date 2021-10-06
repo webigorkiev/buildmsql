@@ -32,13 +32,13 @@ interface mariadbPool extends mariadb.Pool {
     emit(eventName: string | symbol, ...args: Array<any>): boolean;
 }
 /**
- * Options for auery builder
+ * Options for query builder
  */
 export interface Options {
     debug?: 0 | 1;
     nativeTransactions?: boolean;
     pattern?: string;
-    selector?: string;
+    selector?: "RR" | "RANDOM" | "ORDER";
 }
 /**
  * Metadata of result set

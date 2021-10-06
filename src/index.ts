@@ -2,7 +2,6 @@ import mariadb from "mariadb";
 import {performance} from "perf_hooks";
 
 export interface Connection extends mariadb.PoolConnection {
-    insertArray(): void,
     proxy(): Connection,
     getMeta(): Array<MetadataResultSet>|mariadb.UpsertResult|Array<mariadb.UpsertResult>,
     lastInsertId(): number,
@@ -14,8 +13,8 @@ export interface Connection extends mariadb.PoolConnection {
         time: number,
         queries: Array<QueriesInfo>
     },
-    insert(
-        table: string,
+    insert<T extends string>(
+        table: T,
         params: Record<string, any>| Array<Record<string, any>>,
         options?: {
             replace?: boolean,
@@ -25,12 +24,13 @@ export interface Connection extends mariadb.PoolConnection {
             chunk?: number
         }
     ):Promise<mariadb.UpsertResult|Array<mariadb.UpsertResult>|Array<any>>,
-    update(
-        table: string,
+    update<T extends string>(
+        table: T,
         where: string,
         params: Record<string, any>,
         options?: {
             ignore?: boolean,
+            exclude?:Array<string> // Exclude keys - used for placeholders
         }
     ): Promise<mariadb.UpsertResult>,
     getPool(): mariadb.Pool|mariadb.PoolCluster
@@ -46,7 +46,7 @@ interface mariadbPool extends mariadb.Pool {
 }
 
 /**
- * Options for auery builder
+ * Options for query builder
  */
 export interface Options {
 
@@ -61,7 +61,7 @@ export interface Options {
 
     // *string* pools selector. Can be 'RR' (round-robin),
     // 'RANDOM' or 'ORDER' (use in sequence = always use first pools unless fails)
-    selector?: string
+    selector?: "RR"|"RANDOM"|"ORDER"
 }
 
 /**
@@ -267,8 +267,8 @@ export class Query {
      * @param params object of values
      * @param options
      */
-    async poolInsert(
-        table: string,
+    async poolInsert<T extends string>(
+        table: T,
         params: Record<string, any>| Array<Record<string, any>>,
         options?: InsertOptions
     ) {
@@ -286,8 +286,8 @@ export class Query {
      * @param params object of values
      * @param options
      */
-    async poolUpdate(
-        table: string,
+    async poolUpdate<T extends string>(
+        table: T,
         where: string,
         params: Record<string, any>,
         options?: {
@@ -366,8 +366,8 @@ export class Query {
      * @param params object of values
      * @param options
      */
-    async clusterInsert(
-        table: string,
+    async clusterInsert<T extends string>(
+        table: T,
         params: Record<string, any>| Array<Record<string, any>>,
         options?: InsertOptions
     ) {
@@ -392,8 +392,8 @@ export class Query {
      * @param params object of values
      * @param options
      */
-    async clusterUpdate(
-        table: string,
+    async clusterUpdate<T extends string>(
+        table: T,
         where: string,
         params: Record<string, any>,
         options?: {
@@ -639,8 +639,8 @@ export class Query {
      * @param params
      * @param options
      */
-    async insert(
-        table: string,
+    async insert<T extends string>(
+        table: T,
         params: Record<string, any>| Array<Record<string, any>>,
         options?: InsertOptions
     ):Promise<mariadb.UpsertResult|Array<mariadb.UpsertResult>|Array<any>> {
@@ -712,17 +712,22 @@ export class Query {
      * @param params object input values
      * @param options
      */
-    async update(
-        table: string,
+    async update<T extends string>(
+        table: T,
         where: string,
         params: Record<string, any>,
         options?: {
             ignore?: boolean,
-            isPool?: boolean
+            isPool?: boolean,
+            exclude?:Array<string> // Exclude keys - used for placeholders
         }
     ): Promise<mariadb.UpsertResult> {
         options = options || {};
-        const cols = Object.keys(params).map(v => `${v} = :${v}`).join(", ");
+        options.exclude = options.exclude || [];
+        const exclude = options.exclude as Array<string>;
+        const cols = Object.keys(params)
+            .filter(v => !exclude.includes(v))
+            .map(v => `${v} = :${v}`).join(", ");
         const ignore = options.ignore ? "IGNORE" : "";
         const sql = `UPDATE ${ignore} ${table} SET ${cols} WHERE ${where};`;
         const result = await this.query({

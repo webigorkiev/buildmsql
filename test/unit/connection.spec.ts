@@ -284,6 +284,24 @@ describe("Update", () => {
         expect(row.params).to.eql({p: 2}, `params is missing`);
     })
 });
+describe("Update placeholder that not in cols", () => {
+    it("Update row", async() => {
+        await connection.query({
+            sql:`INSERT INTO ${table} (params) VALUES (:test)`,
+            namedPlaceholders: true
+        }, {test: {p: 1}});
+        const id = connection.lastInsertId();
+        await connection.update(table, "id = :idtest", {idtest: id, params: {p: 2}}, {exclude: ["idtest"]});
+        const row = (await connection.query({
+                    sql: `SELECT * FROM ${table} WHERE id = :id`,
+                    namedPlaceholders: true
+                },
+                {id})
+        )?.[0];
+        expect(row.id).to.equal(id, `id is missing`);
+        expect(row.params).to.eql({p: 2}, `params is missing`);
+    })
+});
 
 /**
  * Drop table after all

@@ -1,13 +1,14 @@
 {
   "name": "buildmsql",
-  "version": "1.2.6",
+  "version": "1.2.9",
   "description": "buildmsql build sql for mariadb connector",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "webpack --config ./webpack.config.js --mode production",
+    "build": "yarn docs && webpack --config ./webpack.config.js --mode production",
     "test": "ts-mocha --paths -p tsconfig.json --recursive ./test/unit/**/*.{js,cjs,mjs,ts}",
-    "lint": "eslint src/** --ignore-path ./.eslintignore"
+    "lint": "eslint src/** --ignore-path ./.eslintignore",
+    "docs": "typedoc --includeVersion --excludePrivate --out docs src/index.ts"
   },
   "keywords": [
     "maraidb",
@@ -32,6 +33,7 @@
     "mocha": "^8.4.0",
     "ts-loader": "^9.2.2",
     "ts-mocha": "^8.0.0",
+    "typedoc": "^0.22.5",
     "typescript": "^4.3.2",
     "webpack": "^5.38.1",
     "webpack-cli": "^4.7.0",
