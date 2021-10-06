@@ -8,3 +8,4 @@ development
 node_modules
 package-lock.json
 connect.json
+dist
