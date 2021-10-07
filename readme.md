@@ -6,6 +6,8 @@
 ## Description
 buildmsql helps you build sql for mariadb connector
 
+Documentation - https://webigorkiev.github.io/buildmsql/
+
 ## Installation
 
 ```bash

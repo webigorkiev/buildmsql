@@ -309,7 +309,7 @@ export class Query {
      */
     async clusterQuery(sql: string| mariadb.QueryOptions, values?: any) {
         if(typeof this._buildmsqlCluster === "undefined") {
-            throw Error("pool is undefined");
+            throw Error("cluster is undefined");
         }
 
         const connection = await this.getConnectionCluster();
@@ -329,7 +329,7 @@ export class Query {
      */
     async clusterQueryStream(sql: string| mariadb.QueryOptions, values?: any) {
         if(typeof this._buildmsqlCluster === "undefined") {
-            throw Error("pool is undefined");
+            throw Error("cluster is undefined");
         }
 
         const connection = await this.getConnectionCluster();
@@ -347,7 +347,7 @@ export class Query {
      */
     async clusterBatch(sql: string| mariadb.QueryOptions, values?: any) {
         if(typeof this._buildmsqlCluster === "undefined") {
-            throw Error("pool is undefined");
+            throw Error("cluster is undefined");
         }
 
         const connection = await this.getConnectionCluster();
@@ -372,7 +372,7 @@ export class Query {
         options?: InsertOptions
     ) {
         if(typeof this._buildmsqlCluster === "undefined") {
-            throw Error("pool is undefined");
+            throw Error("cluster is undefined");
         }
 
         const connection = await this.getConnectionCluster();
@@ -401,7 +401,7 @@ export class Query {
         }
     ) {
         if(typeof this._buildmsqlCluster === "undefined") {
-            throw Error("pool is undefined");
+            throw Error("cluster is undefined");
         }
 
         const connection = await this.getConnectionCluster();
