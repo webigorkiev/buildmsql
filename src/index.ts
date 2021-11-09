@@ -38,10 +38,10 @@ export interface Connection extends mariadb.PoolConnection {
 export interface QueryOptions extends mariadb.QueryOptions {
     isPool?: boolean
 }
-interface mariadbConnection extends mariadb.PoolConnection {
+export interface mariadbConnection extends mariadb.PoolConnection {
     emit(eventName: string|symbol, ...args: Array<any>): boolean
 }
-interface mariadbPool extends mariadb.Pool {
+export interface mariadbPool extends mariadb.Pool {
     emit(eventName: string|symbol, ...args: Array<any>): boolean
 }
 
