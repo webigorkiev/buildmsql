@@ -291,8 +291,8 @@ export class Query {
         where: string,
         params: Record<string, any>,
         options?: {
-            ignore?: boolean
-
+            ignore?: boolean,
+            exclude?:Array<string> // Exclude keys - used for placeholder
         }
     ) {
         if(typeof this._buildmsqlPool === "undefined") {
