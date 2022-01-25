@@ -21,7 +21,8 @@ export interface Connection extends mariadb.PoolConnection {
             duplicate?: Array<string>|boolean,
             returning?: Array<string>|boolean,
             ignore?: boolean,
-            chunk?: number
+            chunk?: number,
+            pause?:number
         }
     ):Promise<mariadb.UpsertResult|Array<mariadb.UpsertResult>|Array<any>>,
     update<T extends string>(
@@ -100,7 +101,8 @@ export interface InsertOptions {
     returning?: Array<string>|boolean,
     ignore?: boolean,
     chunk?: number,
-    isPool?: boolean
+    isPool?: boolean,
+    pause?:number
 }
 
 export type {mariadb as mariadb};
@@ -292,7 +294,7 @@ export class Query {
         params: Record<string, any>,
         options?: {
             ignore?: boolean,
-            exclude?:Array<string> // Exclude keys - used for placeholder
+            exclude?:Array<string>
         }
     ) {
         if(typeof this._buildmsqlPool === "undefined") {
@@ -699,6 +701,10 @@ export class Query {
                 }
             } else {
                 this._buildmsqlConnection.emit("inserted", table, result);
+            }
+
+            if(options.pause) {
+                await new Promise(resolve => setTimeout(resolve, options?.pause as number));
             }
         }
 
