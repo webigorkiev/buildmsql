@@ -654,6 +654,7 @@ export class Query {
             : options.duplicate;
         options.chunk = options.chunk || (isArray ? params.length : 1);
         const command = options.replace ? "REPLACE": "INSERT";
+        const into = options.replace ? "": "INTO";
         const ignore = options.ignore && !options.replace ? "IGNORE" : "";
         const returning = Array.isArray(options.returning) && options.returning.length
             ? `RETURNING ${options.returning.join(", ")}`
@@ -666,7 +667,7 @@ export class Query {
             ? Object.keys(params[0]).map(v => `:${v}`).join(", ")
             : Object.keys(params).map(v => `:${v}`).join(", ");
         const sql = `
-            ${command} ${ignore} ${table} (${cols}) 
+            ${command} ${ignore} ${into} ${table} (${cols}) 
             VALUES (${values}) 
             ${duplicate} 
             ${returning};
