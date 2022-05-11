@@ -364,9 +364,9 @@ export class Query {
         });
     }
 
-    async query(
+    async query<T extends(QueryResult|mariadb.UpsertResult|Array<mariadb.UpsertResult>) = QueryResult>(
         sql: string| QueryOptions, values?: any
-    ): Promise<QueryResult|mariadb.UpsertResult|Array<mariadb.UpsertResult>> {
+    ): Promise<T> {
         try {
             this._debugStart(sql, values);
             const provider = typeof sql === "string"
@@ -498,7 +498,7 @@ export class Query {
         table: T,
         params: Record<string, any>| Array<Record<string, any>>,
         options?: InsertOptions
-    ):Promise<mariadb.UpsertResult|Array<mariadb.UpsertResult>|Array<any>> {
+    ):Promise<mariadb.UpsertResult|Array<mariadb.UpsertResult>> {
         const isArray = Array.isArray(params);
         options= options || {};
         options.returning = options.returning === true
@@ -583,7 +583,7 @@ export class Query {
             .map(v => `${v} = :${v}`).join(", ");
         const ignore = options.ignore ? "IGNORE" : "";
         const sql = `UPDATE ${ignore} ${table} SET ${cols} WHERE ${where};`;
-        const result = await this.query({
+        const result = await this.query<mariadb.UpsertResult>({
             sql,
             namedPlaceholders: true,
             isPool: options.isPool
@@ -598,7 +598,7 @@ export class Query {
             this._buildmsqlConnection.emit("inserted", table, result);
         }
 
-        return result as mariadb.UpsertResult;
+        return result;
     }
 
     statistics(): {
