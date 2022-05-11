@@ -102,7 +102,13 @@ export interface InsertOptions {
     ignore?: boolean,
     chunk?: number,
     isPool?: boolean,
-    pause?:number
+    pause?:number,
+    handler?:(result: mariadb.UpsertResult[]) => void // handler for bath results
+}
+export interface UpdateOptions {
+    ignore?: boolean,
+    isPool?: boolean,
+    exclude?:Array<string>, // Exclude keys - used for placeholders
 }
 export interface QueryResult extends Array<Record<string, any>> {
     meta: MetadataResultSet,
@@ -548,13 +554,8 @@ export class Query {
                 }, chunk);
             }
 
-            if(options.isPool) {
-
-                if(this._buildmsqlPool) {
-                    this._buildmsqlPool?.emit("inserted", table, result);
-                }
-            } else {
-                this._buildmsqlConnection?.emit("inserted", table, result);
+            if(options.handler) {
+                options.handler(result as mariadb.UpsertResult[]);
             }
 
             if(options.pause) {
@@ -569,11 +570,7 @@ export class Query {
         table: T,
         where: string,
         params: Record<string, any>,
-        options?: {
-            ignore?: boolean,
-            isPool?: boolean,
-            exclude?:Array<string> // Exclude keys - used for placeholders
-        }
+        options?: UpdateOptions
     ): Promise<mariadb.UpsertResult> {
         options = options || {};
         options.exclude = options.exclude || [];
@@ -588,15 +585,6 @@ export class Query {
             namedPlaceholders: true,
             isPool: options.isPool
         }, params);
-
-        if(options.isPool) {
-
-            if(this._buildmsqlPool) {
-                this._buildmsqlPool?.emit("inserted", table, result);
-            }
-        } else {
-            this._buildmsqlConnection?.emit("inserted", table, result);
-        }
 
         return result;
     }
