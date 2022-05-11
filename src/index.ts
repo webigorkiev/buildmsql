@@ -551,10 +551,10 @@ export class Query {
             if(options.isPool) {
 
                 if(this._buildmsqlPool) {
-                    this._buildmsqlPool.emit("inserted", table, result);
+                    this._buildmsqlPool?.emit("inserted", table, result);
                 }
             } else {
-                this._buildmsqlConnection.emit("inserted", table, result);
+                this._buildmsqlConnection?.emit("inserted", table, result);
             }
 
             if(options.pause) {
@@ -592,10 +592,10 @@ export class Query {
         if(options.isPool) {
 
             if(this._buildmsqlPool) {
-                this._buildmsqlPool.emit("inserted", table, result);
+                this._buildmsqlPool?.emit("inserted", table, result);
             }
         } else {
-            this._buildmsqlConnection.emit("inserted", table, result);
+            this._buildmsqlConnection?.emit("inserted", table, result);
         }
 
         return result;
