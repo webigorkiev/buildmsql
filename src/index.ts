@@ -185,13 +185,13 @@ export class Query {
         return this.proxy(await this._buildmsqlCluster.getConnection(pattern, selector));
     }
 
-    async poolQuery(sql: string| mariadb.QueryOptions, values?: any) {
+    async poolQuery<T extends any = QueryResult>(sql: string| mariadb.QueryOptions, values?: any) {
         if(typeof this._buildmsqlPool === "undefined") {
             throw Error("pool is undefined");
         }
         sql = typeof sql === "string" ? {sql, isPool: true} : Object.assign(sql, {isPool: true});
 
-        return await this.query(sql, values);
+        return await this.query<T>(sql, values);
     }
 
     async poolQueryStream(sql: string| mariadb.QueryOptions, values?: any) {
@@ -244,14 +244,14 @@ export class Query {
         return await this.update(table, where, params, Object.assign(options || {}, {isPool: true}));
     }
 
-    async clusterQuery(sql: string| mariadb.QueryOptions, values?: any) {
+    async clusterQuery<T extends any = QueryResult>(sql: string| mariadb.QueryOptions, values?: any) {
         if(typeof this._buildmsqlCluster === "undefined") {
             throw Error("cluster is undefined");
         }
 
         const connection = await this.getConnectionCluster();
         try {
-            return await this.query(sql, values);
+            return await this.query<T>(sql, values);
         } catch(e) {
             throw e;
         } finally {
@@ -364,7 +364,7 @@ export class Query {
         });
     }
 
-    async query<T extends(QueryResult|mariadb.UpsertResult|Array<mariadb.UpsertResult>) = QueryResult>(
+    async query<T extends any = QueryResult>(
         sql: string| QueryOptions, values?: any
     ): Promise<T> {
         try {
