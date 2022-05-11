@@ -1,6 +1,6 @@
 {
   "name": "buildmsql",
-  "version": "1.3.4",
+  "version": "1.3.5",
   "private": true,
   "description": "buildmsql build sql for mariadb connector",
   "main": "index.js",
@@ -45,6 +45,6 @@
     "yarn": "^1.22.11"
   },
   "dependencies": {
-    "mariadb": "^2.5.4"
+    "mariadb": "^3.0.0"
   }
 }

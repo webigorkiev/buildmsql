@@ -24,7 +24,7 @@ export interface Connection extends mariadb.PoolConnection {
             chunk?: number,
             pause?:number
         }
-    ):Promise<mariadb.UpsertResult|Array<mariadb.UpsertResult>|Array<any>>,
+    ):Promise<mariadb.UpsertResult|Array<mariadb.UpsertResult>>,
     update<T extends string>(
         table: T,
         where: string,
@@ -104,7 +104,10 @@ export interface InsertOptions {
     isPool?: boolean,
     pause?:number
 }
-
+export interface QueryResult extends Array<Record<string, any>> {
+    meta: MetadataResultSet,
+    [key: number]: Record<string, any>
+}
 export type {mariadb as mariadb};
 
 /**
@@ -118,58 +121,35 @@ export class Query {
 
     /**
      * array _buildmsqlQueries information for debug
-     * @private
-     *
      */
     private _buildmsqlQueries: Array<QueriesInfo> = [];
 
     /**
      * object for update/insert/delete
-     * @private
      */
     private _buildmsqlMeta: Array<MetadataResultSet>|mariadb.UpsertResult|Array<mariadb.UpsertResult>;
 
-    /**
-     * @constructor
-     * @param options - config options for query
-     */
     constructor(options: Options = {}) {
         this._buildmsqlOptions = options;
     }
 
-    /**
-     * Create connection
-     * @param config
-     */
     async createConnection(config: mariadb.ConnectionConfig): Promise<Connection> {
 
         return this.proxy(await mariadb.createConnection(config));
     }
 
-    /**
-     * Create pool
-     * @param config
-     */
     createPool(config: mariadb.PoolConfig): mariadbPool {
         this._buildmsqlPool = mariadb.createPool(config) as mariadbPool;
 
         return this._buildmsqlPool;
     }
 
-    /**
-     * Create pool cluster
-     * @param config
-     */
     createPoolCluster(config: mariadb.PoolClusterConfig): mariadb.PoolCluster {
         this._buildmsqlCluster = mariadb.createPoolCluster(config);
 
         return this._buildmsqlCluster;
     }
 
-    /**
-     * Get pool object
-     * @returns
-     */
     getPool(): mariadbPool {
         if(typeof this._buildmsqlPool === "undefined") {
             throw Error("pool is undefined");
@@ -178,10 +158,6 @@ export class Query {
         return this._buildmsqlPool;
     }
 
-    /**
-     * Get cluster
-     * @returns
-     */
     getCluster(): mariadb.PoolCluster {
         if(typeof this._buildmsqlCluster === "undefined") {
             throw Error("cluster is undefined");
@@ -190,10 +166,6 @@ export class Query {
         return this._buildmsqlCluster;
     }
 
-    /**
-     * Get connection
-     * @returns
-     */
     async getConnection(): Promise<Connection> {
         if(typeof this._buildmsqlPool === "undefined") {
             throw Error("pool is undefined");
@@ -202,10 +174,6 @@ export class Query {
         return this.proxy(await this._buildmsqlPool.getConnection());
     }
 
-    /**
-     * Get connection
-     * @returns
-     */
     async getConnectionCluster(pattern?: string, selector?: string): Promise<Connection> {
         if(typeof this._buildmsqlCluster === "undefined") {
             throw Error("cluster is undefined");
@@ -217,11 +185,6 @@ export class Query {
         return this.proxy(await this._buildmsqlCluster.getConnection(pattern, selector));
     }
 
-    /**
-     * Query in pool instance
-     * @param sql
-     * @param values
-     */
     async poolQuery(sql: string| mariadb.QueryOptions, values?: any) {
         if(typeof this._buildmsqlPool === "undefined") {
             throw Error("pool is undefined");
@@ -231,11 +194,6 @@ export class Query {
         return await this.query(sql, values);
     }
 
-    /**
-     * Query in pool instance
-     * @param sql sql string or object
-     * @param values object of values
-     */
     async poolQueryStream(sql: string| mariadb.QueryOptions, values?: any) {
         if(typeof this._buildmsqlPool === "undefined") {
             throw Error("pool is undefined");
@@ -249,11 +207,6 @@ export class Query {
             });
     }
 
-    /**
-     * Query in pool instance
-     * @param sql sql string or object
-     * @param values object of values
-     */
     async poolBatch(sql: string| mariadb.QueryOptions, values?: any) {
         if(typeof this._buildmsqlPool === "undefined") {
             throw Error("pool is undefined");
@@ -263,12 +216,6 @@ export class Query {
         return await this.batch(sql, values);
     }
 
-    /**
-     * Insert single request and release
-     * @param table name
-     * @param params object of values
-     * @param options
-     */
     async poolInsert<T extends string>(
         table: T,
         params: Record<string, any>| Array<Record<string, any>>,
@@ -281,13 +228,6 @@ export class Query {
         return await this.insert(table, params, Object.assign(options || {}, {isPool: true}));
     }
 
-    /**
-     * Update single request and release
-     * @param table name
-     * @param where string of where
-     * @param params object of values
-     * @param options
-     */
     async poolUpdate<T extends string>(
         table: T,
         where: string,
@@ -304,11 +244,6 @@ export class Query {
         return await this.update(table, where, params, Object.assign(options || {}, {isPool: true}));
     }
 
-    /**
-     * Query in pool instance
-     * @param sql
-     * @param values
-     */
     async clusterQuery(sql: string| mariadb.QueryOptions, values?: any) {
         if(typeof this._buildmsqlCluster === "undefined") {
             throw Error("cluster is undefined");
@@ -324,11 +259,6 @@ export class Query {
         }
     }
 
-    /**
-     * Query in pool instance
-     * @param sql sql string or object
-     * @param values object of values
-     */
     async clusterQueryStream(sql: string| mariadb.QueryOptions, values?: any) {
         if(typeof this._buildmsqlCluster === "undefined") {
             throw Error("cluster is undefined");
@@ -342,11 +272,6 @@ export class Query {
             });
     }
 
-    /**
-     * Query in pool instance
-     * @param sql sql string or object
-     * @param values object of values
-     */
     async clusterBatch(sql: string| mariadb.QueryOptions, values?: any) {
         if(typeof this._buildmsqlCluster === "undefined") {
             throw Error("cluster is undefined");
@@ -362,12 +287,6 @@ export class Query {
         }
     }
 
-    /**
-     * Insert single request and release
-     * @param table name
-     * @param params object of values
-     * @param options
-     */
     async clusterInsert<T extends string>(
         table: T,
         params: Record<string, any>| Array<Record<string, any>>,
@@ -387,13 +306,6 @@ export class Query {
         }
     }
 
-    /**
-     * Update single request and release
-     * @param table name
-     * @param where string of where
-     * @param params object of values
-     * @param options
-     */
     async clusterUpdate<T extends string>(
         table: T,
         where: string,
@@ -417,19 +329,10 @@ export class Query {
         }
     }
 
-    /**
-     * Set connection object
-     * @param connection
-     * @private
-     */
     private _setConnection(connection: mariadb.Connection|mariadb.PoolConnection) {
         this._buildmsqlConnection = connection as mariadbConnection;
     }
 
-    /**
-     * Proxy connection
-     * @param connection
-     */
     private proxy(connection: mariadb.Connection|mariadb.PoolConnection): Connection  {
         this._setConnection(connection);
 
@@ -461,13 +364,9 @@ export class Query {
         });
     }
 
-    /**
-     * Request query
-     * @param sql - string sql query
-     * @param values - object values for prepared _buildmsqlQueries
-     * @returns result set of query
-     */
-    async query(sql: string| QueryOptions, values?: any) {
+    async query(
+        sql: string| QueryOptions, values?: any
+    ): Promise<QueryResult|mariadb.UpsertResult|Array<mariadb.UpsertResult>> {
         try {
             this._debugStart(sql, values);
             const provider = typeof sql === "string"
@@ -491,12 +390,6 @@ export class Query {
         }
     }
 
-    /**
-     * Request query streem
-     * @param sql - string sql query
-     * @param values - object values for prepared _buildmsqlQueries
-     * @returns result set of query
-     */
     queryStream(sql: string| QueryOptions, values?: any) {
         this._debugStart(sql, values);
 
@@ -513,12 +406,6 @@ export class Query {
             });
     }
 
-    /**
-     * Request query batch
-     * @param sql - string sql query
-     * @param values - object values for prepared _buildmsqlQueries
-     * @returns result set of query
-     */
     async batch(sql: string| QueryOptions, values?: any) {
         try {
             this._debugStart(sql, values);
@@ -542,10 +429,6 @@ export class Query {
         }
     }
 
-    /**
-     * Begin transaction
-     * @returns void
-     */
     async beginTransaction(): Promise<void> {
 
         if(this._buildmsqlOptions.nativeTransactions) {
@@ -555,10 +438,6 @@ export class Query {
         }
     }
 
-    /**
-     * Rollback transaction
-     * @returns void
-     */
     async rollback(): Promise<void> {
 
         if(this._buildmsqlOptions.nativeTransactions) {
@@ -568,10 +447,6 @@ export class Query {
         }
     }
 
-    /**
-     * Commit transaction
-     * @returns void
-     */
     async commit(): Promise<void> {
 
         if(this._buildmsqlOptions.nativeTransactions) {
@@ -581,45 +456,29 @@ export class Query {
         }
     }
 
-    /**
-     * Get last metadata
-     */
     getMeta(): Array<MetadataResultSet>|mariadb.UpsertResult|Array<mariadb.UpsertResult> {
 
         return this._buildmsqlMeta;
     }
 
-    /**
-     * Get last insert id
-     */
-    lastInsertId(): number {
+    lastInsertId(): number|bigint {
         const meta = this._buildmsqlMeta as mariadb.UpsertResult;
 
         return meta.insertId;
     }
 
-    /**
-     * Get affected Row
-     */
     affectedRows(): number {
         const meta = this._buildmsqlMeta as mariadb.UpsertResult;
 
         return meta.affectedRows;
     }
 
-    /**
-     * Get warring status
-     */
     warningStatus(): number {
         const meta = this._buildmsqlMeta as mariadb.UpsertResult;
 
         return meta.warningStatus;
     }
 
-    /**
-     * escape input values
-     * @param input
-     */
     quote(input: any): string {
 
         if(this._buildmsqlConnection) {
@@ -635,12 +494,6 @@ export class Query {
         throw Error("connection and pool is undefined");
     }
 
-    /**
-     * Insert|Replace [RETURNING]
-     * @param table
-     * @param params
-     * @param options
-     */
     async insert<T extends string>(
         table: T,
         params: Record<string, any>| Array<Record<string, any>>,
@@ -709,16 +562,9 @@ export class Query {
             }
         }
 
-        return result;
+        return result as mariadb.UpsertResult|mariadb.UpsertResult[];
     }
 
-    /**
-     * Update data in table
-     * @param table table name
-     * @param where string for where clouse
-     * @param params object input values
-     * @param options
-     */
     async update<T extends string>(
         table: T,
         where: string,
@@ -752,13 +598,9 @@ export class Query {
             this._buildmsqlConnection.emit("inserted", table, result);
         }
 
-        return result;
+        return result as mariadb.UpsertResult;
     }
 
-    /**
-     * Get query statistics
-     * @returns _buildmsqlQueries statistics
-     */
     statistics(): {
         count: number,
         time: number,
@@ -774,11 +616,6 @@ export class Query {
         }
     }
 
-    /**
-     * Start add debug info
-     * @param sql - sql text
-     * @param values - prepared values object or array
-     */
     private _debugStart(
         sql: string| mariadb.QueryOptions,
         values: Record<string, any>|Array<any>|undefined = undefined
@@ -809,9 +646,6 @@ export class Query {
         }
     }
 
-    /**
-     * End add debug info
-     */
     private _debugEnd() {
 
         if(this._buildmsqlOptions.debug) {
