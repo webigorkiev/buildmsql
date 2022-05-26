@@ -18,6 +18,7 @@ export interface Connection extends mariadb.PoolConnection {
         params: Record<string, any>| Array<Record<string, any>>,
         options?: {
             replace?: boolean,
+            into?: boolean,
             duplicate?: Array<string>|boolean,
             returning?: Array<string>|boolean,
             ignore?: boolean,
@@ -97,6 +98,7 @@ export interface QueriesInfo {
 
 export interface InsertOptions {
     replace?: boolean,
+    into?:boolean,
     duplicate?: Array<string>|boolean,
     returning?: Array<string>|boolean,
     ignore?: boolean,
@@ -515,7 +517,7 @@ export class Query {
             : options.duplicate;
         options.chunk = options.chunk || (isArray ? params.length : 1);
         const command = options.replace ? "REPLACE": "INSERT";
-        const into = options.replace ? "": "INTO";
+        const into = options.replace && !options.into ? "": "INTO";
         const ignore = options.ignore && !options.replace ? "IGNORE" : "";
         const returning = Array.isArray(options.returning) && options.returning.length
             ? `RETURNING ${options.returning.join(", ")}`

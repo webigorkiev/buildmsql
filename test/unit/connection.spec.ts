@@ -1,5 +1,6 @@
 import {expect} from "chai";
-import fs from "fs/promises";
+import * as fs from "fs/promises";
+// @ts-ignore
 import {Query, Connection} from "@/index";
 
 const table = "buildmsqltest";
