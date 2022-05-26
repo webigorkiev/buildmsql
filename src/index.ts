@@ -23,7 +23,8 @@ export interface Connection extends mariadb.PoolConnection {
             returning?: Array<string>|boolean,
             ignore?: boolean,
             chunk?: number,
-            pause?:number
+            pause?:number,
+            suppressBulk?:boolean
         }
     ):Promise<mariadb.UpsertResult|Array<mariadb.UpsertResult>>,
     update<T extends string>(
@@ -57,6 +58,9 @@ export interface Options {
 
     // Used for manticore search
     nativeTransactions?: boolean,
+
+    // Used for manticore search multi insert
+    suppressBulk?: boolean,
 
     // pattern *string* regex pattern to select pools. Example, `"slave*"`. default `'*'`
     pattern?:string,
@@ -105,6 +109,7 @@ export interface InsertOptions {
     chunk?: number,
     isPool?: boolean,
     pause?:number,
+    suppressBulk?:boolean,
     handler?:(result: mariadb.UpsertResult[]) => void // handler for bath results
 }
 export interface UpdateOptions {
@@ -509,6 +514,7 @@ export class Query {
     ):Promise<mariadb.UpsertResult|Array<mariadb.UpsertResult>> {
         const isArray = Array.isArray(params);
         options= options || {};
+        const isSuppressBulk = options.suppressBulk || this._buildmsqlOptions.suppressBulk;
         options.returning = options.returning === true
             ? Object.keys((isArray ? params[0] : params))
             : options.returning;
@@ -542,18 +548,36 @@ export class Query {
         for(let i = 0,j = length; i < j; i += chunkLength) {
             const chunk = isArray ? params.slice(i, i + chunkLength) : params;
 
-            if(isArray) {
-                result = await this.batch({
-                    sql,
-                    namedPlaceholders: true,
-                    isPool: options.isPool
-                }, chunk);
-            } else {
+            // id db not support batch
+            if(isSuppressBulk) {
+                const values = chunk.map(
+                    (row: Record<string, any>) => `(${Object.values(row).map((v) => this.quote(v)).join(",")})`
+                );
+                const sql = `
+                    ${command} ${ignore} ${into} ${table} (${cols}) 
+                    VALUES ${values.join(",")} 
+                    ${duplicate} 
+                    ${returning};
+                `.trim();
                 result = await this.query({
                     sql,
-                    namedPlaceholders: true,
                     isPool: options.isPool
-                }, chunk);
+                });
+            } else {
+
+                if(isArray) {
+                    result = await this.batch({
+                        sql,
+                        namedPlaceholders: true,
+                        isPool: options.isPool
+                    }, chunk);
+                } else {
+                    result = await this.query({
+                        sql,
+                        namedPlaceholders: true,
+                        isPool: options.isPool
+                    }, chunk);
+                }
             }
 
             if(options.handler) {
