@@ -534,7 +534,7 @@ export class Query {
             VALUES (${values}) 
             ${duplicate} 
             ${returning};
-        `;
+        `.trim();
         const chunkLength: number = options.chunk as number;
         const length = isArray ? params.length : 1;
         let result;
