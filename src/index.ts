@@ -215,6 +215,9 @@ export class Query {
         const connection = await this.getConnection();
 
         return this.queryStream(sql, values)
+            .on("error", async() => {
+                await connection.release();
+            })
             .on("end", async() => {
                 await connection.release();
             });
@@ -276,10 +279,12 @@ export class Query {
         if(typeof this._buildmsqlCluster === "undefined") {
             throw Error("cluster is undefined");
         }
-
         const connection = await this.getConnectionCluster();
 
         return this.queryStream(sql, values)
+            .on("error", async() => {
+                await connection.release();
+            })
             .on("end", async() => {
                 await connection.release();
             });
