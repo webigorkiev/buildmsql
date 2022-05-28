@@ -474,7 +474,7 @@ export class Query {
         return this._buildmsqlMeta;
     }
 
-    lastInsertId(): number|bigint {
+    lastInsertId(): number {
         const meta = this._buildmsqlMeta as mariadb.UpsertResult;
 
         return meta.insertId;
