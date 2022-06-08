@@ -74,6 +74,23 @@ describe("batch", async() => {
         const rows = await connection.query(`SELECT * FROM ${table};`);
         expect(rows.length).to.equal(2);
     });
+    it("Insert transaction", async() => {
+        try {
+            await connection.beginTransaction();
+            await connection.batch({
+                    sql: `INSERT INTO ${table} (params)
+                          VALUES (:params)`,
+                    namedPlaceholders: true
+                }, [
+                    {params: {p: 1}},
+                    {params: {p: 2}}]
+            );
+        } finally {
+            await connection.rollback();
+        }
+        const rows = await connection.query(`SELECT * FROM ${table};`);
+        expect(rows.length).to.equal(0);
+    });
 });
 
 describe("Insert", () => {
@@ -302,6 +319,41 @@ describe("Update placeholder that not in cols", () => {
         expect(row.id).to.equal(id, `id is missing`);
         expect(row.params).to.eql({p: 2}, `params is missing`);
     })
+});
+
+describe("pool query stream", () => {
+    it("stream select", async() => {
+        await connection.insert(table, [
+            {
+                id: 1,
+                params: {p:1}
+            },
+            {
+                id: 2,
+                params: {p:2}
+            },
+            {
+                id: 3,
+                params: {p:3}
+            },
+            {
+                id: 4,
+                params: {p:4}
+            }
+        ]);
+        const stream = await connection.queryStream(`
+            SELECT * FROM ${table};
+        `);
+        await new Promise(resolve => {
+            stream
+                .on("data", (row) => {
+                    expect(typeof row.id === "number").to.equal(true);
+                })
+                .on("end", () => {
+                    resolve(true);
+                })
+        });
+    });
 });
 
 /**

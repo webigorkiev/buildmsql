@@ -1,5 +1,6 @@
 import mariadb from "mariadb";
 import {performance} from "perf_hooks";
+import * as util from "util";
 
 export interface Connection extends mariadb.PoolConnection {
     proxy(): Connection,
@@ -13,6 +14,7 @@ export interface Connection extends mariadb.PoolConnection {
         time: number,
         queries: Array<QueriesInfo>
     },
+    query<T extends any = QueryResult>(sql: string| QueryOptions, values?: any): Promise<T>,
     insert<T extends string>(
         table: T,
         params: Record<string, any>| Array<Record<string, any>>,
@@ -157,7 +159,7 @@ export class Query {
         return this._buildmsqlPool;
     }
 
-    createPoolCluster(config: mariadb.PoolClusterConfig): mariadb.PoolCluster {
+    createPoolCluster(config?: mariadb.PoolClusterConfig): mariadb.PoolCluster {
         this._buildmsqlCluster = mariadb.createPoolCluster(config);
 
         return this._buildmsqlCluster;
@@ -202,9 +204,8 @@ export class Query {
         if(typeof this._buildmsqlPool === "undefined") {
             throw Error("pool is undefined");
         }
-        sql = typeof sql === "string" ? {sql, isPool: true} : Object.assign(sql, {isPool: true});
 
-        return await this.query<T>(sql, values);
+        return this.query<T>(sql, values);
     }
 
     async poolQueryStream(sql: string| mariadb.QueryOptions, values?: any) {
@@ -212,24 +213,15 @@ export class Query {
             throw Error("pool is undefined");
         }
 
-        const connection = await this.getConnection();
-
-        return this.queryStream(sql, values)
-            .on("error", async() => {
-                await connection.release();
-            })
-            .on("end", async() => {
-                await connection.release();
-            });
+        return this.queryStream(sql, values);
     }
 
     async poolBatch(sql: string| mariadb.QueryOptions, values?: any) {
         if(typeof this._buildmsqlPool === "undefined") {
             throw Error("pool is undefined");
         }
-        sql = typeof sql === "string" ? {sql, isPool: true} : Object.assign(sql, {isPool: true});
 
-        return await this.batch(sql, values);
+        return this.batch(sql, values);
     }
 
     async poolInsert<T extends string>(
@@ -241,7 +233,7 @@ export class Query {
             throw Error("pool is undefined");
         }
 
-        return await this.insert(table, params, Object.assign(options || {}, {isPool: true}));
+        return this.insert(table, params, options || {});
     }
 
     async poolUpdate<T extends string>(
@@ -257,7 +249,7 @@ export class Query {
             throw Error("pool is undefined");
         }
 
-        return await this.update(table, where, params, Object.assign(options || {}, {isPool: true}));
+        return this.update(table, where, params, options || {});
     }
 
     async clusterQuery<T extends any = QueryResult>(sql: string| mariadb.QueryOptions, values?: any) {
@@ -267,7 +259,7 @@ export class Query {
 
         const connection = await this.getConnectionCluster();
         try {
-            return await this.query<T>(sql, values);
+            return connection.query<T>(sql, values);
         } catch(e) {
             throw e;
         } finally {
@@ -279,15 +271,8 @@ export class Query {
         if(typeof this._buildmsqlCluster === "undefined") {
             throw Error("cluster is undefined");
         }
-        const connection = await this.getConnectionCluster();
 
-        return this.queryStream(sql, values)
-            .on("error", async() => {
-                await connection.release();
-            })
-            .on("end", async() => {
-                await connection.release();
-            });
+        return this.queryStream(sql, values);
     }
 
     async clusterBatch(sql: string| mariadb.QueryOptions, values?: any) {
@@ -297,7 +282,7 @@ export class Query {
 
         const connection = await this.getConnectionCluster();
         try {
-            return await this.batch(sql, values);
+            return connection.batch(sql, values);
         } catch(e) {
             throw e;
         } finally {
@@ -316,7 +301,7 @@ export class Query {
 
         const connection = await this.getConnectionCluster();
         try {
-            return await this.insert(table, params, options);
+            return connection.insert(table, params, options);
         } catch(e) {
             throw e;
         } finally {
@@ -338,8 +323,7 @@ export class Query {
 
         const connection = await this.getConnectionCluster();
         try {
-
-            return await this.update(table, where, params, options);
+            return  connection.update(table, where, params, options);
         } catch(e) {
             throw e;
         } finally {
@@ -387,9 +371,10 @@ export class Query {
     ): Promise<T> {
         try {
             this._debugStart(sql, values);
-            const provider = typeof sql === "string"
+            const isProxy = util.types.isProxy(this);
+            const provider = isProxy
                 ? this._buildmsqlConnection
-                : (sql.isPool ? this._buildmsqlPool : this._buildmsqlConnection);
+                : this._buildmsqlPool;
 
             if(!provider) {
                 throw Error("provider for query is empty");
@@ -408,28 +393,44 @@ export class Query {
         }
     }
 
-    queryStream(sql: string| QueryOptions, values?: any) {
+    async queryStream(sql: string| QueryOptions, values?: any) {
         this._debugStart(sql, values);
+        const isProxy = util.types.isProxy(this);
 
-        return this._buildmsqlConnection.queryStream(sql, values)
-            .on("error", async() => {
-                this._debugEnd();
+        if(isProxy) {
+            return (await this._buildmsqlConnection.queryStream(sql, values))
+                .on("error", async() => {
+                    this._debugEnd();
 
-            })
-            .on("fields", meta => {
-                this._buildmsqlMeta = meta;
-            })
-            .on("end", async() => {
-                this._debugEnd();
-            });
+                })
+                .on("fields", meta => {
+                    this._buildmsqlMeta = meta;
+                })
+                .on("end", async() => {
+                    this._debugEnd();
+                });
+        } else {
+            const connection = this._buildmsqlCluster
+                ? await this.getConnectionCluster()
+                : await this.getConnection();
+
+            return (await connection.queryStream(sql, values))
+                .on("error", async() => {
+                    await connection.release();
+                })
+                .on("end", async() => {
+                    await connection.release();
+                });
+        }
     }
 
     async batch(sql: string| QueryOptions, values?: any) {
         try {
             this._debugStart(sql, values);
-            const provider = typeof sql === "string"
+            const isProxy = util.types.isProxy(this);
+            const provider = isProxy
                 ? this._buildmsqlConnection
-                : (sql.isPool ? this._buildmsqlPool : this._buildmsqlConnection);
+                : this._buildmsqlPool;
 
             if(!provider) {
                 throw Error("provider for query is empty");

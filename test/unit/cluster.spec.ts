@@ -4,7 +4,7 @@ import * as fs from "fs/promises";
 import {Query, mariadb} from "@/index";
 
 const table = "buildmsqltest";
-let pool: mariadb.Pool;
+let cluster: mariadb.PoolCluster;
 let qb: Query;
 
 /**
@@ -18,9 +18,10 @@ before(async() => {
         ).toString()
     );
     qb = new Query({debug:1});
-    pool = qb.createPool({...config.db.home});
+    cluster = qb.createPoolCluster();
+    cluster.add("master", {...config.db.home})
 
-    await qb.poolQuery(`
+    await qb.clusterQuery(`
         CREATE TABLE IF NOT EXISTS ${table} (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Identificatory' ,
             params JSON NULL DEFAULT NULL COMMENT 'JSON params' , PRIMARY KEY (id)
@@ -32,19 +33,19 @@ before(async() => {
  * Clean table before every test
  */
 beforeEach(async() => {
-    await qb.poolQuery(`TRUNCATE ${table};`);
+    await qb.clusterQuery(`TRUNCATE ${table};`);
 })
 
-describe("Init testing schema - pool", () => {
+describe("Init testing schema - cluster", () => {
     it("Test creating table test", async() => {
-        const rows = await qb.poolQuery(`SHOW TABLES LIKE '${table}';`);
+        const rows = await qb.clusterQuery(`SHOW TABLES LIKE '${table}';`);
         expect(rows.length).to.equal(1);
     });
 });
 
-describe("query", () => {
+describe("cluster query", () => {
     it("Insert", async() => {
-        await qb.poolQuery({
+        await qb.clusterQuery({
             sql:`INSERT INTO ${table} (params) VALUES (:test)`,
             namedPlaceholders: true
         }, {test: {p: 1}});
@@ -52,8 +53,8 @@ describe("query", () => {
         expect(qb.affectedRows()).to.equal(1, "affected rows is not a number");
         expect(qb.warningStatus()).to.equal(0, "waring status rows is not a number");
     });
-    it("statistics", async() => {
-        await qb.poolQuery({
+    it("cluster statistics", async() => {
+        await qb.clusterQuery({
             sql:`INSERT INTO ${table} (params) VALUES (:test)`,
             namedPlaceholders: true
         }, {test: {p: 1}});
@@ -64,28 +65,28 @@ describe("query", () => {
     });
 });
 
-describe("batch", async() => {
+describe("cluster batch", async() => {
     it("Insert", async() => {
-        await qb.poolBatch({
+        await qb.clusterBatch({
             sql: `INSERT INTO ${table} (params) VALUES (:params)`,
             namedPlaceholders: true
         }, [
             {params: {p:1}},
             {params: {p:2}}]
         );
-        const rows = await qb.poolQuery(`SELECT * FROM ${table};`);
+        const rows = await qb.clusterQuery(`SELECT * FROM ${table};`);
         expect(rows.length).to.equal(2);
     });
 });
 
-describe("Insert", () => {
+describe("cluster Insert", () => {
     it("Insert", async() => {
-        await qb.poolInsert(table, {
+        await qb.clusterInsert(table, {
             "params": {p:1}
         });
         const id = qb.lastInsertId();
         expect(id).to.be.a("number", "last insert id is not a number");
-        const row = (await qb.poolQuery({
+        const row = (await qb.clusterQuery({
                     sql: `SELECT * FROM ${table} WHERE id = :id`,
                     namedPlaceholders: true
                 },
@@ -95,13 +96,13 @@ describe("Insert", () => {
         expect(row.params).to.eql({p: 1}, `params is missing`);
     });
     it(" [select] from pull then insert by connection", async() => {
-        await qb.poolQuery({
+        await qb.clusterQuery({
                 sql: `SELECT * FROM ${table} WHERE id = :id`,
                 namedPlaceholders: true
             },
             {id: 1}
         );
-        const connection = await qb.getConnection();
+        const connection = await qb.getConnectionCluster();
         try {
             await connection.insert(table, {
                 "params": {p: 1}
@@ -113,12 +114,12 @@ describe("Insert", () => {
         }
     })
     it("Replace", async() => {
-        await qb.poolInsert(table, {
+        await qb.clusterInsert(table, {
             "params": {p:2}
         }, {replace: true});
         const id = qb.lastInsertId();
         expect(id).to.be.a("number", "last insert id is not a number");
-        const row = (await qb.poolQuery({
+        const row = (await qb.clusterQuery({
                     sql: `SELECT * FROM ${table} WHERE id = :id`,
                     namedPlaceholders: true
                 },
@@ -128,17 +129,17 @@ describe("Insert", () => {
         expect(row.params).to.eql({p: 2}, `params is missing`);
     });
     it("Insert ignore", async() => {
-        await qb.poolInsert(table, {
+        await qb.clusterInsert(table, {
             id: 1,
             "params": {p:1}
         });
         const id = qb.lastInsertId();
-        await qb.poolInsert(table, {
+        await qb.clusterInsert(table, {
             id: 1,
             "params": {p:2}
         }, {ignore: true});
         expect(id).to.be.a("number", "last insert id is not a number");
-        const row = (await qb.poolQuery({
+        const row = (await qb.clusterQuery({
                     sql: `SELECT * FROM ${table} WHERE id = :id`,
                     namedPlaceholders: true
                 },
@@ -148,17 +149,17 @@ describe("Insert", () => {
         expect(row.params).to.eql({p: 1}, `params is missing`);
     });
     it("Insert on duplicate key update", async() => {
-        await qb.poolInsert(table, {
+        await qb.clusterInsert(table, {
             id: 1,
             "params": {p:1}
         });
         const id = qb.lastInsertId();
-        await qb.poolInsert(table, {
+        await qb.clusterInsert(table, {
             id: 1,
             "params": {p:2}
         }, {duplicate: ["params"]});
         expect(id).to.be.a("number", "last insert id is not a number");
-        const row = (await qb.poolQuery({
+        const row = (await qb.clusterQuery({
                     sql: `SELECT * FROM ${table} WHERE id = :id`,
                     namedPlaceholders: true
                 },
@@ -168,17 +169,17 @@ describe("Insert", () => {
         expect(row.params).to.eql({p: 2}, `params is missing`);
     });
     it("Insert on duplicate key update all", async() => {
-        await qb.poolInsert(table, {
+        await qb.clusterInsert(table, {
             id: 1,
             "params": {p:1}
         });
         const id = qb.lastInsertId();
-        await qb.poolInsert(table, {
+        await qb.clusterInsert(table, {
             id: 1,
             "params": {p:2}
         }, {duplicate: true});
         expect(id).to.be.a("number", "last insert id is not a number");
-        const row = (await qb.poolQuery({
+        const row = (await qb.clusterQuery({
                     sql: `SELECT * FROM ${table} WHERE id = :id`,
                     namedPlaceholders: true
                 },
@@ -188,7 +189,7 @@ describe("Insert", () => {
         expect(row.params).to.eql({p: 2}, `params is missing`);
     });
     it("Insert batch", async() => {
-        await qb.poolInsert(table, [
+        await qb.clusterInsert(table, [
             {
                 id: 1,
                 params: {p:1}
@@ -198,14 +199,14 @@ describe("Insert", () => {
                 params: {p:2}
             }
         ]);
-        const rows = await qb.poolQuery({
+        const rows = await qb.clusterQuery({
                     sql: `SELECT * FROM ${table}`,
                     namedPlaceholders: true
                 });
         expect(rows.length).to.equal(2, `record is missing`);
     });
     it("Replace batch", async() => {
-        await qb.poolInsert(table, [
+        await qb.clusterInsert(table, [
             {
                 id: 1,
                 params: {p:1}
@@ -215,14 +216,14 @@ describe("Insert", () => {
                 params: {p:2}
             }
         ], {replace: true});
-        const rows = await qb.poolQuery({
+        const rows = await qb.clusterQuery({
             sql: `SELECT * FROM ${table}`,
             namedPlaceholders: true
         });
         expect(rows.length).to.equal(2, `record is missing`);
     });
     it("Insert batch on duplicate key update", async() => {
-        await qb.poolInsert(table, [
+        await qb.clusterInsert(table, [
             {
                 id: 1,
                 params: {p:1}
@@ -232,14 +233,14 @@ describe("Insert", () => {
                 params: {p:2}
             }
         ], {duplicate: true});
-        const rows = await qb.poolQuery({
+        const rows = await qb.clusterQuery({
             sql: `SELECT * FROM ${table}`,
             namedPlaceholders: true
         });
         expect(rows.length).to.equal(2, `record is missing`);
     });
     it("Replace returning", async() => {
-        const rows = await qb.poolInsert(table,
+        const rows = await qb.clusterInsert(table,
             {
                 id: 1,
                 params: {p:1}
@@ -248,7 +249,7 @@ describe("Insert", () => {
         expect(resultSet.length).to.equal(1, `record is missing`);
     });
     it("Insert batch on duplicate key update", async() => {
-        await qb.poolInsert(table, [
+        await qb.clusterInsert(table, [
             {
                 id: 1,
                 params: {p:1}
@@ -266,7 +267,7 @@ describe("Insert", () => {
                 params: {p:4}
             }
         ], {duplicate: true, chunk: 2});
-        const rows = await qb.poolQuery({
+        const rows = await qb.clusterQuery({
             sql: `SELECT * FROM ${table}`,
             namedPlaceholders: true
         });
@@ -274,15 +275,15 @@ describe("Insert", () => {
     });
 });
 
-describe("Update", () => {
+describe("cluster Update", () => {
     it("Update row", async() => {
-        await qb.poolQuery({
+        await qb.clusterQuery({
             sql:`INSERT INTO ${table} (params) VALUES (:test)`,
             namedPlaceholders: true
         }, {test: {p: 1}});
         const id = qb.lastInsertId();
-        await qb.poolUpdate(table, "id = :id", {id, params: {p: 2}});
-        const row = (await qb.poolQuery({
+        await qb.clusterUpdate(table, "id = :id", {id, params: {p: 2}});
+        const row = (await qb.clusterQuery({
                     sql: `SELECT * FROM ${table} WHERE id = :id`,
                     namedPlaceholders: true
                 },
@@ -293,9 +294,9 @@ describe("Update", () => {
     })
 });
 
-describe("pool query stream", () => {
+describe("cluster query stream", () => {
     it("stream select", async() => {
-        await qb.poolInsert(table, [
+        await qb.clusterInsert(table, [
             {
                 id: 1,
                 params: {p:1}
@@ -313,7 +314,7 @@ describe("pool query stream", () => {
                 params: {p:4}
             }
         ]);
-        const stream = await qb.poolQueryStream(`
+        const stream = await qb.clusterQueryStream(`
             SELECT * FROM ${table};
         `);
         await new Promise(resolve => {
@@ -336,6 +337,6 @@ after(async() => {
     // await qb.poolQuery(`
     //     DROP TABLE IF EXISTS ${table};
     // `);
-    const pool = qb.getPool();
-    await pool.end();
+    const cluster = qb.getCluster();
+    await cluster.end();
 });
