@@ -370,6 +370,7 @@ export class Query {
         sql: string| QueryOptions, values?: any
     ): Promise<T> {
         try {
+            sql = typeof sql === "string" ? sql.trim() : Object.assign(sql, {sql: sql.sql.trim()});
             this._debugStart(sql, values);
             const isProxy = util.types.isProxy(this);
             const provider = isProxy
@@ -379,7 +380,6 @@ export class Query {
             if(!provider) {
                 throw Error("provider for query is empty");
             }
-
             const result = await provider.query(sql, values);
             const meta = (result.hasOwnProperty("meta") ? result.meta : result);
             this._buildmsqlMeta = meta;
@@ -394,6 +394,7 @@ export class Query {
     }
 
     async queryStream(sql: string| QueryOptions, values?: any) {
+        sql = typeof sql === "string" ? sql.trim() : Object.assign(sql, {sql: sql.sql.trim()});
         this._debugStart(sql, values);
         const isProxy = util.types.isProxy(this);
 
@@ -426,6 +427,7 @@ export class Query {
 
     async batch(sql: string| QueryOptions, values?: any) {
         try {
+            sql = typeof sql === "string" ? sql.trim() : Object.assign(sql, {sql: sql.sql.trim()});
             this._debugStart(sql, values);
             const isProxy = util.types.isProxy(this);
             const provider = isProxy
