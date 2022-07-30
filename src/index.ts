@@ -4,6 +4,7 @@ import * as util from "util";
 import {Readable, Writable} from "stream";
 
 export interface Connection extends mariadb.PoolConnection {
+    createStreamQueryInterface(opt: StreamInterfaceOptions): Readable,
     proxy(): Connection,
     getMeta(): Array<MetadataResultSet>|mariadb.UpsertResult|Array<mariadb.UpsertResult>,
     lastInsertId(): number,
