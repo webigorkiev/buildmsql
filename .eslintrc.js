@@ -48,6 +48,7 @@ module.exports = {
         "@typescript-eslint/no-explicit-any": "off",
         "@typescript-eslint/ban-ts-comment": "off",
         "@typescript-eslint/explicit-module-boundary-types": "off",
-        "yarn:package.json:eslint": "off"
+        "yarn:package.json:eslint": "off",
+        "@typescript-eslint/no-empty-function":"off"
     },
 };

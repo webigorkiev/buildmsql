@@ -1,6 +1,7 @@
 import mariadb from "mariadb";
 import {performance} from "perf_hooks";
 import * as util from "util";
+import {Readable, Writable} from "stream";
 
 export interface Connection extends mariadb.PoolConnection {
     proxy(): Connection,
@@ -125,6 +126,12 @@ export interface QueryResult extends Array<Record<string, any>> {
 }
 export type {mariadb as mariadb};
 
+export interface StreamInterfaceOptions {
+    input: Readable,
+    output?:Readable,
+    chunk?: number
+}
+
 /**
  * Query builder class
  */
@@ -143,6 +150,45 @@ export class Query {
      * object for update/insert/delete
      */
     private _buildmsqlMeta: Array<MetadataResultSet>|mariadb.UpsertResult|Array<mariadb.UpsertResult>;
+
+    // Create interface for sync by chunk
+    public createStreamQueryInterface(opt: StreamInterfaceOptions): Readable {
+        const chunk = opt.chunk || 1000;
+        let i = 0;
+        const output = opt.output || new Readable({objectMode: true, read(size: number) {}});
+        output.pause();
+        const write = new Writable({
+            highWaterMark: chunk + 1,
+            objectMode: true,
+            writev(
+                chunks: Array<{ chunk: any; encoding: BufferEncoding }>, callback: (error?: (Error | null)
+            ) => void) {
+                output.push(chunks);
+                callback(null);
+            },
+            final(callback: (error?: (Error | null)) => void) {
+                output.push(null);
+                callback(null);
+            }
+        });
+        write.cork();
+        opt.input
+            .on("data", () => {
+                if(i >= chunk) {
+                    i = 0;
+                    write.uncork();
+                    write.cork();
+                }
+                i++;
+            })
+            .on("end", () => {
+                write.uncork();
+                write.end();
+            })
+            .pipe(write);
+
+        return output;
+    }
 
     constructor(options: Options = {}) {
         this._buildmsqlOptions = options;
