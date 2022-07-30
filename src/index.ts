@@ -164,7 +164,7 @@ export class Query {
             writev(
                 chunks: Array<{ chunk: any; encoding: BufferEncoding }>, callback: (error?: (Error | null)
             ) => void) {
-                output.push(chunks);
+                output.push(chunks.map((row) => row.chunk));
                 callback(null);
             },
             final(callback: (error?: (Error | null)) => void) {
