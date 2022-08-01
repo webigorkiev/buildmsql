@@ -130,7 +130,8 @@ export type {mariadb as mariadb};
 export interface StreamInterfaceOptions {
     input: Readable,
     output?:Readable,
-    chunk?: number
+    chunk?: number,
+    highWaterMark?:number
 }
 
 /**
@@ -156,10 +157,14 @@ export class Query {
     public createStreamQueryInterface(opt: StreamInterfaceOptions): Readable {
         const chunk = opt.chunk || 1000;
         let i = 0;
-        const output = opt.output || new Readable({objectMode: true, read(size: number) {}});
+        const output = opt.output || new Readable({
+            objectMode: true,
+            highWaterMark: opt.highWaterMark || chunk + 1,
+            read(size: number) {}
+        });
         output.pause();
         const write = new Writable({
-            highWaterMark: chunk + 1,
+            highWaterMark: opt.highWaterMark || chunk + 1,
             objectMode: true,
             writev(
                 chunks: Array<{ chunk: any; encoding: BufferEncoding }>, callback: (error?: (Error | null)
