@@ -159,7 +159,7 @@ export class Query {
         let i = 0;
         const output = opt.output || new Readable({
             objectMode: true,
-            highWaterMark: opt.highWaterMark || chunk + 1,
+            highWaterMark: 1,
             read(size: number) {}
         });
         output.pause();
