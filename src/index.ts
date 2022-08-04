@@ -611,7 +611,7 @@ export class Query {
             // id db not support batch
             if(isSuppressBulk) {
                 const values = chunk.map(
-                    (row: Record<string, any>) => `(${Object.values(row).map((v) => this.quote(v)).join(",")})`
+                    (row: Record<string, any>) => `(${Object.values(row).map((v) => Array.isArray(v) ? "(" + this.quote(v) + ")" : this.quote(v)).join(",")})`
                 );
                 const sql = `
                     ${command} ${ignore} ${into} ${table} (${cols}) 
