@@ -34,6 +34,9 @@ const inputClient = [
     await fs.copy("./docs", path.resolve(root, "./docs"));
     const pkg = await fs.readJson(path.resolve(root, "./package.json"));
     pkg.private = false;
+
+    // Delete scripts
+    delete(pkg.scripts);
     await fs.writeJson(path.resolve(root, "./package.json"), pkg, {
         spaces: 2
     });

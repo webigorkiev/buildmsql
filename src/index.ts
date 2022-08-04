@@ -20,25 +20,13 @@ export interface Connection extends mariadb.PoolConnection {
     insert<T extends string>(
         table: T,
         params: Record<string, any>| Array<Record<string, any>>,
-        options?: {
-            replace?: boolean,
-            into?: boolean,
-            duplicate?: Array<string>|boolean,
-            returning?: Array<string>|boolean,
-            ignore?: boolean,
-            chunk?: number,
-            pause?:number,
-            suppressBulk?:boolean
-        }
+        options?: InsertOptions
     ):Promise<mariadb.UpsertResult|Array<mariadb.UpsertResult>>,
     update<T extends string>(
         table: T,
         where: string,
         params: Record<string, any>,
-        options?: {
-            ignore?: boolean,
-            exclude?:Array<string> // Exclude keys - used for placeholders
-        }
+        options?: UpdateOptions
     ): Promise<mariadb.UpsertResult>,
     getPool(): mariadb.Pool|mariadb.PoolCluster
 }
@@ -114,6 +102,7 @@ export interface InsertOptions {
     isPool?: boolean,
     pause?:number,
     suppressBulk?:boolean,
+    last_insert_id?: string, // field for ON DUPLICATE UPDATE id = LAST_INSERT_ID(id)
     handler?:(result: mariadb.UpsertResult[]) => void // handler for bath results
 }
 export interface UpdateOptions {
@@ -588,9 +577,23 @@ export class Query {
         const returning = Array.isArray(options.returning) && options.returning.length
             ? `RETURNING ${options.returning.join(", ")}`
             : "";
-        const duplicate = Array.isArray(options.duplicate) && options.duplicate.length && !options.replace
-            ? `ON DUPLICATE KEY UPDATE ${options.duplicate.map(v => `${v}=VALUES(${v})`).join(", ")}`
-            : "";
+        let duplicate = "";
+
+        if(Array.isArray(options.duplicate) && options.duplicate.length && !options.replace) {
+            if(isArray) {
+                duplicate = `ON DUPLICATE KEY UPDATE ${options.duplicate.map(v => `${v}=VALUES(${v})`).join(", ")}`;
+            } else {
+                const valuesString = options.duplicate.map(v => {
+                    if(options?.last_insert_id && options.last_insert_id === v) {
+                        return `${v}=LAST_INSERT_ID(${v})`;
+                    } else {
+                        return `${v}=VALUES(${v})`;
+                    }
+                }).join(", ");
+                duplicate = `ON DUPLICATE KEY UPDATE ${valuesString}`;
+            }
+        }
+
         const cols = isArray ? Object.keys(params[0]).join(", ") : Object.keys(params).join(", ");
         const values = isArray
             ? Object.keys(params[0]).map(v => `:${v}`).join(", ")

@@ -164,6 +164,19 @@ describe("Insert", () => {
         expect(row.id).to.equal(id, `id is missing`);
         expect(row.params).to.eql({p: 2}, `params is missing`);
     });
+    it("Insert on duplicate key update last_insert_id", async() => {
+        await connection.insert(table, {
+            id: 1,
+            "params": {p:1}
+        });
+        await connection.insert(table, {
+            id: 1,
+            "params": {p:2}
+        }, {duplicate: true, last_insert_id: "id"});
+        const id = connection.lastInsertId();
+        expect(id).to.be.a("number", "last insert id is not a number");
+        expect(id).to.eql(1, "last insert id = 1 ON DUPLICATE");
+    });
     it("Insert on duplicate key update all", async() => {
         await connection.insert(table, {
             id: 1,
