@@ -16,16 +16,16 @@ export interface Connection extends mariadb.PoolConnection {
         time: number,
         queries: Array<QueriesInfo>
     },
-    query<T extends any = QueryResult>(sql: string| QueryOptions, values?: any): Promise<T>,
-    insert<T extends string>(
+    query<T extends any = QueryResult, V = Record<string, any>>(sql: string| QueryOptions, values?: Partial<V>): Promise<T>,
+    insert<T extends string, V = Record<string, any>>(
         table: T,
-        params: Record<string, any>| Array<Record<string, any>>,
+        params: Partial<V>| Partial<V>[],
         options?: InsertOptions
     ):Promise<mariadb.UpsertResult|Array<mariadb.UpsertResult>>,
-    update<T extends string>(
+    update<T extends string, V = Record<string, any>>(
         table: T,
         where: string,
-        params: Record<string, any>,
+        params: Partial<V>,
         options?: UpdateOptions
     ): Promise<mariadb.UpsertResult>,
     getPool(): mariadb.Pool|mariadb.PoolCluster
@@ -241,7 +241,7 @@ export class Query {
         return this.proxy(await this._buildmsqlCluster.getConnection(pattern, selector));
     }
 
-    async poolQuery<T extends any = QueryResult>(sql: string| mariadb.QueryOptions, values?: any) {
+    async poolQuery<T extends any = QueryResult, V = Record<string, any>>(sql: string| mariadb.QueryOptions, values?: Partial<V>) {
         if(typeof this._buildmsqlPool === "undefined") {
             throw Error("pool is undefined");
         }
@@ -249,7 +249,7 @@ export class Query {
         return this.query<T>(sql, values);
     }
 
-    async poolQueryStream(sql: string| mariadb.QueryOptions, values?: any) {
+    async poolQueryStream<V = Record<string, any>>(sql: string| mariadb.QueryOptions, values?: Partial<V>) {
         if(typeof this._buildmsqlPool === "undefined") {
             throw Error("pool is undefined");
         }
@@ -257,7 +257,7 @@ export class Query {
         return this.queryStream(sql, values);
     }
 
-    async poolBatch(sql: string| mariadb.QueryOptions, values?: any) {
+    async poolBatch<V = Record<string, any>>(sql: string| mariadb.QueryOptions, values?: Partial<V>) {
         if(typeof this._buildmsqlPool === "undefined") {
             throw Error("pool is undefined");
         }
@@ -265,9 +265,9 @@ export class Query {
         return this.batch(sql, values);
     }
 
-    async poolInsert<T extends string>(
+    async poolInsert<T extends string, V = Record<string, any>>(
         table: T,
-        params: Record<string, any>| Array<Record<string, any>>,
+        params: Partial<V>|Partial<V>[],
         options?: InsertOptions
     ) {
         if(typeof this._buildmsqlPool === "undefined") {
@@ -277,10 +277,10 @@ export class Query {
         return this.insert(table, params, options || {});
     }
 
-    async poolUpdate<T extends string>(
+    async poolUpdate<T extends string, V = Record<string, any>>(
         table: T,
         where: string,
-        params: Record<string, any>,
+        params: Partial<V>,
         options?: {
             ignore?: boolean,
             exclude?:Array<string>
@@ -293,7 +293,7 @@ export class Query {
         return this.update(table, where, params, options || {});
     }
 
-    async clusterQuery<T extends any = QueryResult>(sql: string| mariadb.QueryOptions, values?: any) {
+    async clusterQuery<T extends any = QueryResult, V = Record<string, any>>(sql: string| mariadb.QueryOptions, values?: Partial<V>) {
         if(typeof this._buildmsqlCluster === "undefined") {
             throw Error("cluster is undefined");
         }
@@ -308,7 +308,7 @@ export class Query {
         }
     }
 
-    async clusterQueryStream(sql: string| mariadb.QueryOptions, values?: any) {
+    async clusterQueryStream<V = Record<string, any>>(sql: string| mariadb.QueryOptions, values?: Partial<V>) {
         if(typeof this._buildmsqlCluster === "undefined") {
             throw Error("cluster is undefined");
         }
@@ -316,7 +316,7 @@ export class Query {
         return this.queryStream(sql, values);
     }
 
-    async clusterBatch(sql: string| mariadb.QueryOptions, values?: any) {
+    async clusterBatch<V = Record<string, any>>(sql: string| mariadb.QueryOptions, values?: Partial<V>) {
         if(typeof this._buildmsqlCluster === "undefined") {
             throw Error("cluster is undefined");
         }
@@ -331,9 +331,9 @@ export class Query {
         }
     }
 
-    async clusterInsert<T extends string>(
+    async clusterInsert<T extends string, V = Record<string, any>>(
         table: T,
-        params: Record<string, any>| Array<Record<string, any>>,
+        params: Partial<V>|Partial<V>[],
         options?: InsertOptions
     ) {
         if(typeof this._buildmsqlCluster === "undefined") {
@@ -350,10 +350,10 @@ export class Query {
         }
     }
 
-    async clusterUpdate<T extends string>(
+    async clusterUpdate<T extends string, V = Record<string, any>>(
         table: T,
         where: string,
-        params: Record<string, any>,
+        params: Partial<V>,
         options?: {
             ignore?: boolean
         }
@@ -407,8 +407,8 @@ export class Query {
         });
     }
 
-    async query<T extends any = QueryResult>(
-        sql: string| QueryOptions, values?: any
+    async query<T extends any = QueryResult, V = Record<string, any>>(
+        sql: string| QueryOptions, values?: Partial<V>
     ): Promise<T> {
         try {
             sql = typeof sql === "string" ? sql.trim() : Object.assign(sql, {sql: sql.sql.trim()});
@@ -434,7 +434,7 @@ export class Query {
         }
     }
 
-    async queryStream(sql: string| QueryOptions, values?: any) {
+    async queryStream<V = Record<string, any>>(sql: string| QueryOptions, values?: Partial<V>) {
         sql = typeof sql === "string" ? sql.trim() : Object.assign(sql, {sql: sql.sql.trim()});
         this._debugStart(sql, values);
         const isProxy = util.types.isProxy(this);
@@ -466,7 +466,7 @@ export class Query {
         }
     }
 
-    async batch(sql: string| QueryOptions, values?: any) {
+    async batch<V = Record<string, any>>(sql: string| QueryOptions, values?: Partial<V>) {
         try {
             sql = typeof sql === "string" ? sql.trim() : Object.assign(sql, {sql: sql.sql.trim()});
             this._debugStart(sql, values);
@@ -523,19 +523,19 @@ export class Query {
         return this._buildmsqlMeta;
     }
 
-    lastInsertId(): number {
+    lastInsertId() {
         const meta = this._buildmsqlMeta as mariadb.UpsertResult;
 
         return meta.insertId;
     }
 
-    affectedRows(): number {
+    affectedRows() {
         const meta = this._buildmsqlMeta as mariadb.UpsertResult;
 
         return meta.affectedRows;
     }
 
-    warningStatus(): number {
+    warningStatus() {
         const meta = this._buildmsqlMeta as mariadb.UpsertResult;
 
         return meta.warningStatus;
@@ -556,9 +556,9 @@ export class Query {
         throw Error("connection and pool is undefined");
     }
 
-    async insert<T extends string>(
+    async insert<T extends string, V = Record<string, any>>(
         table: T,
-        params: Record<string, any>| Array<Record<string, any>>,
+        params: Partial<V>|Partial<V>[],
         options?: InsertOptions
     ):Promise<mariadb.UpsertResult|Array<mariadb.UpsertResult>> {
         const isArray = Array.isArray(params);
@@ -613,7 +613,7 @@ export class Query {
 
             // id db not support batch
             if(isSuppressBulk) {
-                const values = chunk.map(
+                const values = (chunk as Partial<V>[]).map(
                     (row: Record<string, any>) => `(${Object.values(row).map((v) => Array.isArray(v) ? "(" + this.quote(v) + ")" : this.quote(v)).join(",")})`
                 );
                 const sql = `
@@ -633,13 +633,13 @@ export class Query {
                         sql,
                         namedPlaceholders: true,
                         isPool: options.isPool
-                    }, chunk);
+                    }, chunk as Partial<V>[]);
                 } else {
                     result = await this.query({
                         sql,
                         namedPlaceholders: true,
                         isPool: options.isPool
-                    }, chunk);
+                    }, chunk as Partial<V>[]);
                 }
             }
 
@@ -655,10 +655,10 @@ export class Query {
         return result as mariadb.UpsertResult|mariadb.UpsertResult[];
     }
 
-    async update<T extends string>(
+    async update<T extends string, V = Record<string, any>>(
         table: T,
         where: string,
-        params: Record<string, any>,
+        params: Partial<V>,
         options?: UpdateOptions
     ): Promise<mariadb.UpsertResult> {
         options = options || {};
