@@ -7,7 +7,7 @@ export interface Connection extends mariadb.PoolConnection {
     createStreamQueryInterface(opt: StreamInterfaceOptions): Readable,
     proxy(): Connection,
     getMeta(): Array<MetadataResultSet>|mariadb.UpsertResult|Array<mariadb.UpsertResult>,
-    lastInsertId(): number,
+    lastInsertId<T = number>(): T,
     affectedRows(): number,
     warningStatus(): number,
     quote(input: any): string,
@@ -523,10 +523,10 @@ export class Query {
         return this._buildmsqlMeta;
     }
 
-    lastInsertId() {
+    lastInsertId<T = number>() {
         const meta = this._buildmsqlMeta as mariadb.UpsertResult;
 
-        return meta.insertId;
+        return meta.insertId as unknown as T;
     }
 
     affectedRows() {
