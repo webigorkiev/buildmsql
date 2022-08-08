@@ -4,6 +4,7 @@ import * as util from "util";
 import {Readable, Writable} from "stream";
 
 export interface Connection extends mariadb.PoolConnection {
+    getConfig(): mariadb.ConnectionConfig | mariadb.PoolConfig | mariadb.PoolClusterConfig;
     createStreamQueryInterface(opt: StreamInterfaceOptions): Readable,
     proxy(): Connection,
     getMeta(): Array<MetadataResultSet>|mariadb.UpsertResult|Array<mariadb.UpsertResult>,
@@ -127,6 +128,7 @@ export interface StreamInterfaceOptions {
  * Query builder class
  */
 export class Query {
+    private _buildmsqlConfig: mariadb.ConnectionConfig | mariadb.PoolConfig | mariadb.PoolClusterConfig;
     private _buildmsqlCluster?:mariadb.PoolCluster;
     private _buildmsqlPool?: mariadbPool;
     private _buildmsqlConnection: mariadbConnection;
@@ -190,20 +192,27 @@ export class Query {
     }
 
     async createConnection(config: mariadb.ConnectionConfig): Promise<Connection> {
+        this._buildmsqlConfig = config;
 
         return this.proxy(await mariadb.createConnection(config));
     }
 
     createPool(config: mariadb.PoolConfig): mariadbPool {
+        this._buildmsqlConfig = config;
         this._buildmsqlPool = mariadb.createPool(config) as mariadbPool;
 
         return this._buildmsqlPool;
     }
 
-    createPoolCluster(config?: mariadb.PoolClusterConfig): mariadb.PoolCluster {
+    createPoolCluster(config: mariadb.PoolClusterConfig): mariadb.PoolCluster {
+        this._buildmsqlConfig = config;
         this._buildmsqlCluster = mariadb.createPoolCluster(config);
 
         return this._buildmsqlCluster;
+    }
+
+    getConfig() {
+        return this._buildmsqlConfig;
     }
 
     getPool(): mariadbPool {
@@ -389,7 +398,7 @@ export class Query {
                     return Reflect.get(this, prop, receiver);
                 } else {
 
-                    return Reflect.get(target, prop, receiver);
+                    return Reflect.get(target, prop, receiver)?.bind(target);
                 }
             },
             set: (target, prop, value, receiver) => {
@@ -614,7 +623,10 @@ export class Query {
             // id db not support batch
             if(isSuppressBulk) {
                 const values = (chunk as Partial<V>[]).map(
-                    (row: Record<string, any>) => `(${Object.values(row).map((v) => Array.isArray(v) ? "(" + this.quote(v) + ")" : this.quote(v)).join(",")})`
+                    (row: Record<string, any>) => `(${Object.values(row).map(
+                        // @ts-ignore
+                        (v) => Array.isArray(v) && !this._buildmsqlConfig?.arrayParenthesis ? "(" + this.quote(v) + ")" : this.quote(v)).join(",")
+                    })`
                 );
                 const sql = `
                     ${command} ${ignore} ${into} ${table} (${cols}) 

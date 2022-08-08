@@ -18,6 +18,7 @@ before(async() => {
         ).toString()
     );
     connection = await qp.createConnection({...config.db.home});
+
     await connection.query(`
         CREATE TABLE IF NOT EXISTS ${table} (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Identificatory' ,
