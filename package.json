@@ -1,6 +1,6 @@
 {
   "name": "buildmsql",
-  "version": "1.5.2",
+  "version": "1.6.0",
   "private": true,
   "description": "buildmsql build sql for mariadb connector",
   "main": "index.js",

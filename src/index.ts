@@ -29,7 +29,11 @@ export interface Connection extends mariadb.PoolConnection {
         params: Partial<V>,
         options?: UpdateOptions
     ): Promise<mariadb.UpsertResult>,
-    getPool(): mariadb.Pool|mariadb.PoolCluster
+    getPool(): mariadb.Pool|mariadb.PoolCluster,
+
+    // Original connection object
+    _connection: mariadb.Connection,
+    _instanceBuildmsqlMeta: mariadb.UpsertResult|Array<mariadb.UpsertResult>
 }
 export interface QueryOptions extends mariadb.QueryOptions {
     isPool?: boolean
@@ -48,9 +52,6 @@ export interface Options {
 
     // Debug level: 0 - no debag info, 1 - _buildmsqlQueries text and timing
     debug?: 0|1,
-
-    // Used for manticore search
-    nativeTransactions?: boolean,
 
     // Used for manticore search multi insert
     suppressBulk?: boolean,
@@ -127,11 +128,11 @@ export interface StreamInterfaceOptions {
 /**
  * Query builder class
  */
+export interface Query {_connection: mariadb.Connection}
 export class Query {
     private _buildmsqlConfig: mariadb.ConnectionConfig | mariadb.PoolConfig | mariadb.PoolClusterConfig;
     private _buildmsqlCluster?:mariadb.PoolCluster;
     private _buildmsqlPool?: mariadbPool;
-    private _buildmsqlConnection: mariadbConnection;
     private _buildmsqlOptions: Options;
 
     /**
@@ -139,10 +140,8 @@ export class Query {
      */
     private _buildmsqlQueries: Array<QueriesInfo> = [];
 
-    /**
-     * object for update/insert/delete
-     */
-    private _buildmsqlMeta: Array<MetadataResultSet>|mariadb.UpsertResult|Array<mariadb.UpsertResult>;
+    // TODO separate for any connection
+    private _instanceBuildmsqlMeta: Array<MetadataResultSet>|mariadb.UpsertResult|Array<mariadb.UpsertResult>;
 
     // Create interface for sync by chunk
     public createStreamQueryInterface(opt: StreamInterfaceOptions): Readable {
@@ -204,8 +203,8 @@ export class Query {
         return this._buildmsqlPool;
     }
 
-    createPoolCluster(config: mariadb.PoolClusterConfig): mariadb.PoolCluster {
-        this._buildmsqlConfig = config;
+    createPoolCluster(config?: mariadb.PoolClusterConfig): mariadb.PoolCluster {
+        this._buildmsqlConfig = config || {};
         this._buildmsqlCluster = mariadb.createPoolCluster(config);
 
         return this._buildmsqlCluster;
@@ -309,7 +308,10 @@ export class Query {
 
         const connection = await this.getConnectionCluster();
         try {
-            return connection.query<T>(sql, values);
+            const res = await connection.query<T>(sql, values);
+            this._instanceBuildmsqlMeta = connection._instanceBuildmsqlMeta;
+
+            return res;
         } catch(e) {
             throw e;
         } finally {
@@ -332,7 +334,10 @@ export class Query {
 
         const connection = await this.getConnectionCluster();
         try {
-            return connection.batch(sql, values);
+            const res = await connection.batch(sql, values);
+            this._instanceBuildmsqlMeta = connection._instanceBuildmsqlMeta;
+
+            return res;
         } catch(e) {
             throw e;
         } finally {
@@ -351,7 +356,10 @@ export class Query {
 
         const connection = await this.getConnectionCluster();
         try {
-            return connection.insert(table, params, options);
+            const res = await connection.insert(table, params, options);
+            this._instanceBuildmsqlMeta = connection._instanceBuildmsqlMeta;
+
+            return res;
         } catch(e) {
             throw e;
         } finally {
@@ -373,7 +381,10 @@ export class Query {
 
         const connection = await this.getConnectionCluster();
         try {
-            return  connection.update(table, where, params, options);
+            const res = await connection.update(table, where, params, options);
+            this._instanceBuildmsqlMeta = connection._instanceBuildmsqlMeta;
+
+            return res;
         } catch(e) {
             throw e;
         } finally {
@@ -381,16 +392,19 @@ export class Query {
         }
     }
 
-    private _setConnection(connection: mariadb.Connection|mariadb.PoolConnection) {
-        this._buildmsqlConnection = connection as mariadbConnection;
-    }
-
     private proxy(connection: mariadb.Connection|mariadb.PoolConnection): Connection  {
-        this._setConnection(connection);
 
+        //@ts-ignore
+        connection._instanceBuildmsqlMeta = {};
+
+        // _buildmsqlMeta -
         return new Proxy(connection as Connection, {
             get: (target, prop, receiver) => {
-                if(
+                if(prop === "_instanceBuildmsqlMeta") {
+                    return Reflect.get(target, prop, receiver);
+                } else if(prop === "_connection") {
+                    return connection;
+                } else if(
                     Reflect.has(this, prop)
                     || typeof prop === "string" && prop.indexOf("_buildmsql") === 0
                 ) {
@@ -402,7 +416,9 @@ export class Query {
                 }
             },
             set: (target, prop, value, receiver) => {
-                if(
+                if(prop === "_instanceBuildmsqlMeta") {
+                    return Reflect.set(target, prop, value);
+                } else if(
                     Reflect.has(this, prop)
                     || typeof prop === "string" && prop.indexOf("_buildmsql") === 0
                 ) {
@@ -424,7 +440,7 @@ export class Query {
             this._debugStart(sql, values);
             const isProxy = util.types.isProxy(this);
             const provider = isProxy
-                ? this._buildmsqlConnection
+                ? this._connection
                 : this._buildmsqlPool;
 
             if(!provider) {
@@ -432,7 +448,7 @@ export class Query {
             }
             const result = await provider.query(sql, values);
             const meta = (result.hasOwnProperty("meta") ? result.meta : result);
-            this._buildmsqlMeta = meta;
+            this._instanceBuildmsqlMeta = meta;
 
             return result;
         } catch(e) {
@@ -449,13 +465,13 @@ export class Query {
         const isProxy = util.types.isProxy(this);
 
         if(isProxy) {
-            return (await this._buildmsqlConnection.queryStream(sql, values))
+            return (await this._connection.queryStream(sql, values))
                 .on("error", async() => {
                     this._debugEnd();
 
                 })
                 .on("fields", meta => {
-                    this._buildmsqlMeta = meta;
+                    this._instanceBuildmsqlMeta = meta;
                 })
                 .on("end", async() => {
                     this._debugEnd();
@@ -469,6 +485,9 @@ export class Query {
                 .on("error", async() => {
                     await connection.release();
                 })
+                .on("fields", meta => {
+                    this._instanceBuildmsqlMeta = meta;
+                })
                 .on("end", async() => {
                     await connection.release();
                 });
@@ -481,7 +500,7 @@ export class Query {
             this._debugStart(sql, values);
             const isProxy = util.types.isProxy(this);
             const provider = isProxy
-                ? this._buildmsqlConnection
+                ? this._connection
                 : this._buildmsqlPool;
 
             if(!provider) {
@@ -489,7 +508,7 @@ export class Query {
             }
 
             const result = await provider.batch(sql, values);
-            this._buildmsqlMeta = result;
+            this._instanceBuildmsqlMeta = result;
 
             return result;
         } catch(e) {
@@ -500,60 +519,33 @@ export class Query {
         }
     }
 
-    async beginTransaction(): Promise<void> {
-
-        if(this._buildmsqlOptions.nativeTransactions) {
-            await this.query("\nSTART TRANSACTION");
-        } else {
-            await this._buildmsqlConnection.beginTransaction();
-        }
-    }
-
-    async rollback(): Promise<void> {
-
-        if(this._buildmsqlOptions.nativeTransactions) {
-            await this.query("\nROLLBACK");
-        } else {
-            await this._buildmsqlConnection.rollback();
-        }
-    }
-
-    async commit(): Promise<void> {
-
-        if(this._buildmsqlOptions.nativeTransactions) {
-            await this.query("\nCOMMIT");
-        } else {
-            await this._buildmsqlConnection.commit();
-        }
-    }
-
     getMeta(): Array<MetadataResultSet>|mariadb.UpsertResult|Array<mariadb.UpsertResult> {
 
-        return this._buildmsqlMeta;
+        return this._instanceBuildmsqlMeta;
     }
 
     lastInsertId<T = number>() {
-        const meta = this._buildmsqlMeta as mariadb.UpsertResult;
+        const meta = this._instanceBuildmsqlMeta as mariadb.UpsertResult;
 
         return meta.insertId as unknown as T;
     }
 
     affectedRows() {
-        const meta = this._buildmsqlMeta as mariadb.UpsertResult;
+        const meta = this._instanceBuildmsqlMeta as mariadb.UpsertResult;
 
         return meta.affectedRows;
     }
 
     warningStatus() {
-        const meta = this._buildmsqlMeta as mariadb.UpsertResult;
+        const meta = this._instanceBuildmsqlMeta as mariadb.UpsertResult;
 
         return meta.warningStatus;
     }
 
     quote(input: any): string {
 
-        if(this._buildmsqlConnection) {
-            return this._buildmsqlConnection.escape(input);
+        if(this._connection) {
+            return this._connection.escape(input);
         }
 
         //@ts-ignore
@@ -727,7 +719,7 @@ export class Query {
             }
 
             this._buildmsqlQueries.push({
-                threadId: this._buildmsqlConnection?.threadId,
+                threadId: this._connection?.threadId,
                 start: performance.now(),
                 time: 0,
                 sql: sqlString

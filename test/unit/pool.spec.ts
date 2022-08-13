@@ -272,6 +272,26 @@ describe("Insert", () => {
         });
         expect(rows.length).to.equal(4, `record is missing`);
     });
+    it("lastInsertId", async() => {
+        const conn1 = await qb.getConnection();
+        const conn2 = await qb.getConnection();
+        try {
+            const res1 = await conn1.insert(table, {
+                id: 1,
+                params: {p:1}
+            })
+            const res2 = await conn2.insert(table, {
+                id: 2,
+                params: {p:2}
+            });
+
+            expect((res1 as mariadb.UpsertResult).insertId).to.equal(conn1.lastInsertId());
+            expect((res2 as mariadb.UpsertResult).insertId).to.equal(conn2.lastInsertId());
+        } finally {
+            await conn1.release();
+            await conn2.release();
+        }
+    });
 });
 
 describe("Update", () => {
