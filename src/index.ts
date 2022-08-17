@@ -682,6 +682,17 @@ export class Query {
         return result;
     }
 
+    async end() {
+        const isProxy = util.types.isProxy(this);
+
+        if(isProxy) {
+            await this._connection.end();
+        } else {
+            this._buildmsqlPool && await this._buildmsqlPool.end();
+            this._buildmsqlCluster && await this._buildmsqlCluster.end();
+        }
+    }
+
     statistics(): {
         count: number,
         time: number,
