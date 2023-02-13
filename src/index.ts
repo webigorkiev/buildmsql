@@ -249,7 +249,7 @@ export class Query {
         return this.proxy(await this._buildmsqlCluster.getConnection(pattern, selector));
     }
 
-    async poolQuery<T extends any = QueryResult, V = Record<string, any>>(sql: string| mariadb.QueryOptions, values?: Partial<V>) {
+    async poolQuery<T extends any = QueryResult, V = Record<string, any>>(sql: string| QueryOptions, values?: Partial<V>) {
         if(typeof this._buildmsqlPool === "undefined") {
             throw Error("pool is undefined");
         }
@@ -257,7 +257,7 @@ export class Query {
         return this.query<T>(sql, values);
     }
 
-    async poolQueryStream<V = Record<string, any>>(sql: string| mariadb.QueryOptions, values?: Partial<V>) {
+    async poolQueryStream<V = Record<string, any>>(sql: string| QueryOptions, values?: Partial<V>) {
         if(typeof this._buildmsqlPool === "undefined") {
             throw Error("pool is undefined");
         }
@@ -265,7 +265,7 @@ export class Query {
         return this.queryStream(sql, values);
     }
 
-    async poolBatch<V = Record<string, any>>(sql: string| mariadb.QueryOptions, values?: Partial<V>) {
+    async poolBatch<V = Record<string, any>>(sql: string| QueryOptions, values?: Partial<V>) {
         if(typeof this._buildmsqlPool === "undefined") {
             throw Error("pool is undefined");
         }
@@ -301,7 +301,7 @@ export class Query {
         return this.update(table, where, params, options || {});
     }
 
-    async clusterQuery<T extends any = QueryResult, V = Record<string, any>>(sql: string| mariadb.QueryOptions, values?: Partial<V>) {
+    async clusterQuery<T extends any = QueryResult, V = Record<string, any>>(sql: string| QueryOptions, values?: Partial<V>) {
         if(typeof this._buildmsqlCluster === "undefined") {
             throw Error("cluster is undefined");
         }
@@ -319,7 +319,7 @@ export class Query {
         }
     }
 
-    async clusterQueryStream<V = Record<string, any>>(sql: string| mariadb.QueryOptions, values?: Partial<V>) {
+    async clusterQueryStream<V = Record<string, any>>(sql: string| QueryOptions, values?: Partial<V>) {
         if(typeof this._buildmsqlCluster === "undefined") {
             throw Error("cluster is undefined");
         }
@@ -327,7 +327,7 @@ export class Query {
         return this.queryStream(sql, values);
     }
 
-    async clusterBatch<V = Record<string, any>>(sql: string| mariadb.QueryOptions, values?: Partial<V>) {
+    async clusterBatch<V = Record<string, any>>(sql: string| QueryOptions, values?: Partial<V>) {
         if(typeof this._buildmsqlCluster === "undefined") {
             throw Error("cluster is undefined");
         }
@@ -709,7 +709,7 @@ export class Query {
     }
 
     private _debugStart(
-        sql: string| mariadb.QueryOptions,
+        sql: string| QueryOptions,
         values: Record<string, any>|Array<any>|undefined = undefined
     ) {
 
