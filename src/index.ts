@@ -1,7 +1,7 @@
 import mariadb from "mariadb";
 import {performance} from "perf_hooks";
 import * as util from "util";
-import {Readable, Writable} from "stream";
+import {PassThrough, Readable, Writable} from "stream";
 
 export interface Connection extends mariadb.PoolConnection {
     getConfig(): mariadb.ConnectionConfig | mariadb.PoolConfig | mariadb.PoolClusterConfig;
@@ -124,6 +124,11 @@ export interface StreamInterfaceOptions {
     chunk?: number,
     highWaterMark?:number
 }
+export interface PageStreamInterfaceOptions {
+    input: (start: number, limit: number) => Promise<Record<string, any>[]>, // Function for select data page to page
+    output?:PassThrough,
+    chunk?: number, // default: 1000
+}
 
 /**
  * Query builder class
@@ -182,6 +187,29 @@ export class Query {
                 write.end();
             })
             .pipe(write);
+
+        return output;
+    }
+
+    // Create interface for reading page by page
+    public createPageStreamQueryInterface(opt: PageStreamInterfaceOptions): PassThrough {
+        const limit = opt.chunk || 1000;
+        let start = 0;
+        const output = opt.output || new PassThrough({
+            objectMode: true,
+            highWaterMark: 1
+        });
+        const next = () => opt.input(start, limit)
+            .then((rows) => {
+                if(rows.length)  {
+                    output.push(rows);
+                    start = start + limit;
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    next();
+                } else {
+                    output.push(null);
+                }
+            });
 
         return output;
     }
