@@ -268,16 +268,23 @@ export class Query {
             highWaterMark: 1
         });
         const next = () => opt.input(start, limit)
-            .then((rows) => {
+            .then(async(rows) => {
                 if(rows.length)  {
-                    output.push(rows);
+                    const isNotfull = output.push(rows);
                     start = start + limit;
+
+                    // Waite for stream drain
+                    if(!isNotfull) {
+                        await new Promise(resolve => output.once("drain", () => resolve(true)));
+                    }
+
                     // eslint-disable-next-line @typescript-eslint/no-unused-vars
                     next();
                 } else {
                     output.push(null);
                 }
             });
+        next();
 
         return output;
     }
