@@ -237,7 +237,9 @@ export class Query {
                 const ok = output.push(chunks.map((row) => row.chunk));
 
                 if(delayCoefficient && output.readableLength > 2) {
+                    opt.input.pause();
                     setTimeout(() => {
+                        opt.input.resume();
                         callback(null);
                     }, output.readableLength * delayCoefficient)
                 } else {
