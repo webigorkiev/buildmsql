@@ -270,11 +270,11 @@ export class Query {
         const next = () => opt.input(start, limit)
             .then(async(rows) => {
                 if(rows.length)  {
-                    const isNotfull = output.push(rows);
+                    const isNotFull = output.push(rows);
                     start = start + limit;
 
                     // Waite for stream drain
-                    if(!isNotfull) {
+                    if(!isNotFull) {
                         await new Promise(resolve => output.once("drain", () => resolve(true)));
                     }
 
