@@ -232,17 +232,8 @@ export class Query {
             writev(
                 chunks: Array<{ chunk: any; encoding: BufferEncoding }>, callback: (error?: (Error | null)
             ) => void) {
-                const ok = output.push(chunks.map((row) => row.chunk));
-
-                if(ok) {
-                    callback(null);
-                } else {
-                    opt.input.pause();
-                    write.once("drain", () => {
-                        opt.input.resume();
-                        callback(null);
-                    });
-                }
+                output.push(chunks.map((row) => row.chunk));
+                callback(null);
             },
             final(callback: (error?: (Error | null)) => void) {
                 output.push(null);
