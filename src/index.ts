@@ -122,7 +122,8 @@ export interface StreamInterfaceOptions {
     input: Readable,
     output?:Readable,
     chunk?: number,
-    highWaterMark?:number
+    highWaterMark?:number,
+    delayCoefficient?: number
 }
 export interface PageInterfaceOptions<T> {
     input: (start: number, limit: number) => Promise<T[]>, // Function for select data page to page
@@ -218,6 +219,7 @@ export class Query {
 
     // Create interface for sync by chunk
     public createStreamQueryInterface<T>(opt: StreamInterfaceOptions): BuildmsqlReadable<T> {
+        const delayCoefficient = opt.delayCoefficient || 200;
         const chunk = opt.chunk || 1000;
         let i = 0;
         const output = opt.output || new Readable({
@@ -232,8 +234,16 @@ export class Query {
             writev(
                 chunks: Array<{ chunk: any; encoding: BufferEncoding }>, callback: (error?: (Error | null)
             ) => void) {
-                output.push(chunks.map((row) => row.chunk));
-                callback(null);
+                const ok = output.push(chunks.map((row) => row.chunk));
+
+                if(delayCoefficient && output.readableLength > 2) {
+                    setTimeout(() => {
+                        callback(null);
+                    }, output.readableLength * delayCoefficient)
+                } else {
+                    callback(null);
+                }
+
             },
             final(callback: (error?: (Error | null)) => void) {
                 output.push(null);
