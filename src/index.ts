@@ -124,7 +124,7 @@ export interface StreamInterfaceOptions {
     chunk?: number,
     highWaterMark?:number
 }
-export interface PageStreamInterfaceOptions<T> {
+export interface PageInterfaceOptions<T> {
     input: (start: number, limit: number) => Promise<T[]>, // Function for select data page to page
     output?:PassThrough,
     chunk?: number, // default: 1000
@@ -260,33 +260,24 @@ export class Query {
     }
 
     // Create interface for reading page by page
-    public createPageStreamQueryInterface<T>(opt: PageStreamInterfaceOptions<T>): BuildmsqlPassThrough<T> {
+    public async createPageQueryInterface<T>(opt: PageInterfaceOptions<T>) {
         const limit = opt.chunk || 1000;
         let start = 0;
-        const output = opt.output || new PassThrough({
-            objectMode: true,
-            highWaterMark: 1
-        });
-        const next = () => opt.input(start, limit)
-            .then(async(rows) => {
-                if(rows.length)  {
-                    const isNotFull = output.push(rows);
-                    start = start + limit;
+        await new Promise((resolve, reject) => {
+            const next = () => opt.input(start, limit)
+                .then((rows) => {
+                    if(rows.length)  {
+                        start = start + limit;
 
-                    // Waite for stream drain
-                    if(!isNotFull) {
-                        await new Promise(resolve => output.once("drain", () => resolve(true)));
+                        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                        next();
+                    } else {
+                        resolve(true)
                     }
-
-                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                    next();
-                } else {
-                    output.push(null);
-                }
-            });
-        next();
-
-        return output;
+                })
+                .catch((e: any) => reject(e));
+            next();
+        })
     }
 
     constructor(options: Options = {}) {
