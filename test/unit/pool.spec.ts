@@ -292,6 +292,22 @@ describe("Insert", () => {
             await conn2.release();
         }
     });
+    it("lastInsertId BigInt", async() => {
+        const conn1 = await qb.getConnection();
+        try {
+            const res1 = await conn1.insert(table, {
+                id: 1,
+                params: {p:1}
+            }, {
+                query: {
+                    insertIdAsNumber: false
+                }
+            })
+            expect(typeof conn1.lastInsertId() === "bigint").to.equal(true);
+        } finally {
+            await conn1.release();
+        }
+    });
 });
 
 describe("Update", () => {

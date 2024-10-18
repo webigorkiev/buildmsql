@@ -105,12 +105,14 @@ export interface InsertOptions {
     pause?:number,
     suppressBulk?:boolean,
     last_insert_id?: string, // field for ON DUPLICATE UPDATE id = LAST_INSERT_ID(id)
-    handler?:(result: mariadb.UpsertResult[]) => void // handler for bath results
+    handler?:(result: mariadb.UpsertResult[]) => void, // handler for bath results
+    query?:Omit<mariadb.QueryOptions, "sql">,
 }
 export interface UpdateOptions {
     ignore?: boolean,
     isPool?: boolean,
     exclude?:Array<string>, // Exclude keys - used for placeholders
+    query?:Omit<mariadb.QueryOptions, "sql">
 }
 export interface QueryResult extends Array<Record<string, any>> {
     meta: MetadataResultSet,
@@ -131,7 +133,6 @@ export interface PageInterfaceOptions<T> {
     chunk?: number, // default: 1000
 }
 type BuildmsqlReadable<T> = Readable & ReadableEvents<T>;
-type BuildmsqlPassThrough<T> = PassThrough & ReadableEvents<T>;
 
 // Custom events for Readable Streams
 export interface ReadableEvents<T> {
@@ -742,13 +743,15 @@ export class Query {
                     result = await this.batch({
                         sql,
                         namedPlaceholders: true,
-                        isPool: options.isPool
+                        isPool: options.isPool,
+                        ...(options.query || {})
                     }, chunk as Partial<V>[]);
                 } else {
                     result = await this.query({
                         sql,
                         namedPlaceholders: true,
-                        isPool: options.isPool
+                        isPool: options.isPool,
+                        ...(options.query || {})
                     }, chunk as Partial<V>[]);
                 }
             }
@@ -782,7 +785,8 @@ export class Query {
         const result = await this.query<mariadb.UpsertResult>({
             sql,
             namedPlaceholders: true,
-            isPool: options.isPool
+            isPool: options.isPool,
+            ...(options.query || {})
         }, params);
 
         return result;
