@@ -19,9 +19,7 @@ const external = [
 ];
 // console.log(root);
 
-const inputClient = [
-    "./src/index.ts"
-];
+const inputClient = "./src/index.ts";
 
 (async() => {
     log(chalk.green.bold("Start build bundle"));
@@ -41,7 +39,8 @@ const inputClient = [
         spaces: 2
     });
     log("Copy files to dist dir");
-    await buildPlugin(inputClient, root);
+    await buildPlugin(inputClient, path.resolve(root, "./index.js"), "cjs");
+    await buildPlugin(inputClient, path.resolve(root, "./index.mjs"), "esm");
     log("Build plugin");
     await buildTypes(inputClient, root);
     log("Build types");
@@ -50,11 +49,7 @@ const inputClient = [
     await checkFileSize("./dist/index.js");
 })();
 
-/**
- * Build bundle by rollup
- * @returns {Promise<void>}
- */
-const buildPlugin = async(input, root) => {
+const buildPlugin = async(input, output,  type = "cjs") => {
     const bundle = await rollup.rollup({
         input,
         external,
@@ -70,9 +65,8 @@ const buildPlugin = async(input, root) => {
         ]
     });
     await bundle.write({
-        dir: root,
-        format: "cjs",
-        exports: "auto"
+        format: type,
+        file: output,
     });
     await bundle.close();
 };

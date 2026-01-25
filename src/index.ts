@@ -129,7 +129,6 @@ export interface StreamInterfaceOptions {
 }
 export interface PageInterfaceOptions<T> {
     input: (start: number, limit: number) => Promise<T[]>, // Function for select data page to page
-    output?:PassThrough,
     chunk?: number, // default: 1000
 }
 type BuildmsqlReadable<T> = Readable & ReadableEvents<T>;
@@ -219,6 +218,11 @@ export class Query {
     private _instanceBuildmsqlMeta: Array<MetadataResultSet>|mariadb.UpsertResult|Array<mariadb.UpsertResult>;
 
     // Create interface for sync by chunk
+    // const reader = cloud.createStreamQueryInterface({
+    //             chunk: 25000,
+    //             input: await cloud.queryStream(`SELECT idFROM estimateLo`)
+    //         });
+    //         for await(let rows of reader) {
     public createStreamQueryInterface<T>(opt: StreamInterfaceOptions): BuildmsqlReadable<T> {
         const delayCoefficient = opt.delayCoefficient || 200;
         const chunk = opt.chunk || 1000;

@@ -1,9 +1,10 @@
 {
   "name": "buildmsql",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "private": true,
   "description": "buildmsql build sql for mariadb connector",
   "main": "index.js",
+  "module": "index.mjs",
   "types": "index.d.ts",
   "scripts": {
     "tunnel": "ssh -L 3306:127.0.0.1:3306 tehnoskarb@godisonline.net",
@@ -35,7 +36,7 @@
     "esbuild": "^0.14.54",
     "eslint": "^7.26.0",
     "fs-extra": "^10.0.0",
-    "mariadb": "^3.0.1",
+    "mariadb": "^3.4.5",
     "mocha": "^10.0.0",
     "rollup": "^2.56.2",
     "rollup-plugin-dts": "^3.0.2",
