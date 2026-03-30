@@ -1,7 +1,8 @@
 import mariadb from "mariadb";
 import {performance} from "perf_hooks";
 import * as util from "util";
-import {PassThrough, Readable, Writable} from "stream";
+import {PassThrough, Readable, Transform, Writable} from "stream";
+import {TransformCallback} from "node:stream";
 
 export interface Connection extends mariadb.PoolConnection {
     getConfig(): mariadb.ConnectionConfig | mariadb.PoolConfig | mariadb.PoolClusterConfig;
@@ -274,6 +275,40 @@ export class Query {
             .pipe(write);
 
         return output;
+    }
+
+    public createStreamQueryInterfaceTransform(
+        opt: {
+            input: NodeJS.ReadableStream,
+            chunk?: number,
+        }
+    ) {
+        const chunkSize = opt.chunk || 1000;
+        let buffer: any[] = []; // Локальный буфер для накопления
+        const grouper = new Transform({
+            objectMode: true,
+            // Используем arrow function, если нужен доступ к context 'this' (grouper)
+            transform(chunk: any, encoding: string, callback: TransformCallback) {
+                buffer.push(chunk);
+
+                if(buffer.length >= chunkSize) {
+                    const batchToSend = buffer;
+                    buffer = [];
+                    callback(null, batchToSend);
+                } else {
+                    callback();
+                }
+            },
+            flush(callback: TransformCallback) {
+                if(buffer.length > 0) {
+                    this.push(buffer);
+                    buffer = [];
+                }
+                callback();
+            }
+        });
+
+        return opt.input.pipe(grouper);
     }
 
     // Create interface for reading page by page
@@ -570,6 +605,7 @@ export class Query {
         }
     }
 
+    // TODO потеря данных
     async queryStream<V = Record<string, any>>(sql: string| QueryOptions, values?: Partial<V>) {
         sql = typeof sql === "string" ? sql.trim() : Object.assign(sql, {sql: sql.sql.trim()});
         this._debugStart(sql, values);
@@ -592,7 +628,7 @@ export class Query {
                 ? await this.getConnectionCluster()
                 : await this.getConnection();
 
-            return (await connection.queryStream(sql, values))
+            return (await connection.queryStream(sql, values)) // TODO не нужен await
                 .on("error", async() => {
                     await connection.release();
                 })
