@@ -1,4 +1,4 @@
-import mariadb from "mariadb";
+import * as mariadb from 'mariadb';
 import {performance} from "perf_hooks";
 import * as util from "util";
 import {PassThrough, Readable, Transform, Writable} from "stream";
@@ -411,7 +411,7 @@ export class Query {
         return this.queryStream(sql, values);
     }
 
-    async poolBatch<V = Record<string, any>>(sql: string| QueryOptions, values?: Partial<V>) {
+    async poolBatch<V = Record<string, any>>(sql: string| QueryOptions, values?: Partial<V>|Partial<V>[]) {
         if(typeof this._buildmsqlPool === "undefined") {
             throw Error("pool is undefined");
         }
@@ -473,7 +473,7 @@ export class Query {
         return this.queryStream(sql, values);
     }
 
-    async clusterBatch<V = Record<string, any>>(sql: string| QueryOptions, values?: Partial<V>) {
+    async clusterBatch<V = Record<string, any>>(sql: string| QueryOptions, values?: Partial<V>|Partial<V>[]) {
         if(typeof this._buildmsqlCluster === "undefined") {
             throw Error("cluster is undefined");
         }
@@ -641,7 +641,7 @@ export class Query {
         }
     }
 
-    async batch<V = Record<string, any>>(sql: string| QueryOptions, values?: Partial<V>) {
+    async batch<V = Record<string, any>>(sql: string| QueryOptions, values?: Partial<V>|Partial<V>[]) {
         try {
             sql = typeof sql === "string" ? sql.trim() : Object.assign(sql, {sql: sql.sql.trim()});
             this._debugStart(sql, values);
